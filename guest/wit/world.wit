@@ -1,0 +1,26 @@
+package component:dyna;
+
+world dynamic-dispatch {
+    import dynamic-component;
+    export hello: func();
+}
+    
+interface dynamic-component {
+    load-component: func(path: string) -> component;
+
+    resource component {
+        // reflect: func() -> list<member>;
+        call: func(name: string);
+    }
+}
+
+//variant member {
+//    function(function);
+//}
+
+// resource function {
+// }
+
+// variant arg {
+//     foo
+// }
