@@ -10,6 +10,7 @@ impl Guest for Component {
     fn hello() {
         let component =
             load_component("/Users/rylev/.cargo_target/wasm32-unknown-unknown/debug/example.wasm");
-        component.call("hello-world");
+        let val = component.call("hello-world", &[]);
+        println!("Hello from the guest: {:?}", val);
     }
 }

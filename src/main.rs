@@ -1,5 +1,6 @@
 use anyhow::Context;
 use component::dyna::dynamic_component::Host;
+use wasmtime_wasi::preview2::WasiView;
 
 wasmtime::component::bindgen!(in "guest/wit");
 
@@ -16,6 +17,7 @@ async fn main() {
     let component = wasmtime::component::Component::from_file(&engine, component_path).unwrap();
     let mut linker = wasmtime::component::Linker::new(&engine);
     component::dyna::dynamic_component::add_to_linker(&mut linker, |x| x).unwrap();
+    wasmtime_wasi::preview2::command::add_to_linker(&mut linker).unwrap();
     let instance = linker
         .instantiate_async(&mut store, &component)
         .await
@@ -29,6 +31,7 @@ async fn main() {
 struct State {
     engine: wasmtime::Engine,
     table: wasmtime::component::ResourceTable,
+    ctx: wasmtime_wasi::preview2::WasiCtx,
 }
 
 impl State {
@@ -36,6 +39,9 @@ impl State {
         Self {
             engine,
             table: wasmtime::component::ResourceTable::new(),
+            ctx: wasmtime_wasi::preview2::WasiCtxBuilder::new()
+                .inherit_stdio()
+                .build(),
         }
     }
 }
@@ -74,19 +80,36 @@ impl component::dyna::dynamic_component::HostComponent for State {
         &mut self,
         self_: wasmtime::component::Resource<component::dyna::dynamic_component::Component>,
         name: String,
-    ) -> wasmtime::Result<()> {
-        let self_ = wasmtime::component::Resource::new_own(self_.rep());
+        args: Vec<component::dyna::dynamic_component::Val>,
+    ) -> wasmtime::Result<Vec<component::dyna::dynamic_component::Val>> {
+        let self_ = wasmtime::component::Resource::new_borrow(self_.rep());
         let state: &mut ComponentState = self.table.get_mut(&self_).unwrap();
         let func = state
             .instance
             .get_func(&mut state.store, &name)
             .with_context(|| format!("failed to find function export `{name}`"))?;
+        let params = args
+            .into_iter()
+            .map(|a| match a {
+                component::dyna::dynamic_component::Val::Str(s) => {
+                    wasmtime::component::Val::String(s.into())
+                }
+            })
+            .collect::<Vec<_>>();
         let mut result = [wasmtime::component::Val::String(
             String::from("").into_boxed_str(),
         )];
-        func.call(&mut state.store, &[], &mut result)?;
-        println!("{result:?}");
-        Ok(())
+        func.call(&mut state.store, &params, &mut result)?;
+        let results = result
+            .into_iter()
+            .map(|v| match v {
+                wasmtime::component::Val::String(s) => {
+                    component::dyna::dynamic_component::Val::Str(s.into())
+                }
+                _ => todo!(""),
+            })
+            .collect();
+        Ok(results)
     }
 
     fn drop(
@@ -103,4 +126,14 @@ impl component::dyna::dynamic_component::HostComponent for State {
 struct ComponentState {
     store: wasmtime::Store<()>,
     instance: wasmtime::component::Instance,
+}
+
+impl WasiView for State {
+    fn table(&mut self) -> &mut wasmtime::component::ResourceTable {
+        &mut self.table
+    }
+
+    fn ctx(&mut self) -> &mut wasmtime_wasi::preview2::WasiCtx {
+        &mut self.ctx
+    }
 }

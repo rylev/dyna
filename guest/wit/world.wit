@@ -9,18 +9,10 @@ interface dynamic-component {
     load-component: func(path: string) -> component;
 
     resource component {
-        // reflect: func() -> list<member>;
-        call: func(name: string);
+        call: func(name: string, params: list<val>) -> list<val>;
+    }
+
+    variant val {
+        str(string)
     }
 }
-
-//variant member {
-//    function(function);
-//}
-
-// resource function {
-// }
-
-// variant arg {
-//     foo
-// }
