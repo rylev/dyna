@@ -1,0 +1,10 @@
+[package]
+name = "host"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tokio = { version = "1.0", features = ["full"] }
+wasmtime = "18.0.0"
+wasmtime-wasi = "18.0.0"
+dyna = { path = "../.." }

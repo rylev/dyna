@@ -5,9 +5,7 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0"
-tokio = { version = "1.0", features = ["full"] }
 wasmtime = "18.0.0"
-wasmtime-wasi = "18.0.0"
 
 [workspace]
-members = ["example", "guest"]
+members = ["example/*"]

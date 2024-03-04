@@ -8,8 +8,7 @@ pub struct Component;
 
 impl Guest for Component {
     fn hello() {
-        let component =
-            load_component("/Users/rylev/.cargo_target/wasm32-unknown-unknown/debug/example.wasm");
+        let component = load_component("example/static_guest.wasm");
         let val = component.call("hello-world", &[]);
         println!("Hello from the guest: {:?}", val);
     }

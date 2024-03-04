@@ -1,5 +1,5 @@
 [package]
-name = "dyna-guest"
+name = "dynamic-guest"
 version = "0.1.0"
 edition = "2021"
 
@@ -14,4 +14,5 @@ crate-type = ["cdylib"]
 [package.metadata.component]
 package = "component:dyna"
 
-[package.metadata.component.dependencies]
+[package.metadata.component.target.dependencies]
+"component:dyna" = { path = "../../wit" }

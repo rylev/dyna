@@ -476,13 +476,11 @@ name = "dyna"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "tokio",
  "wasmtime",
- "wasmtime-wasi",
 ]
 
 [[package]]
-name = "dyna-guest"
+name = "dynamic-guest"
 version = "0.1.0"
 dependencies = [
  "wit-bindgen",
@@ -517,13 +515,6 @@ checksum = "a258e46cdc063eb8519c00b9fc845fc47bcfca4130e2f08e88665ceda8474245"
 dependencies = [
  "libc",
  "windows-sys 0.52.0",
-]
-
-[[package]]
-name = "example"
-version = "0.1.0"
-dependencies = [
- "wit-bindgen",
 ]
 
 [[package]]
@@ -707,6 +698,16 @@ name = "hermit-abi"
 version = "0.3.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d231dfb89cfffdbc30e7fc41579ed6066ad03abda9e567ccafae602b97ec5024"
+
+[[package]]
+name = "host"
+version = "0.1.0"
+dependencies = [
+ "dyna",
+ "tokio",
+ "wasmtime",
+ "wasmtime-wasi",
+]
 
 [[package]]
 name = "iana-time-zone"
@@ -1263,6 +1264,13 @@ name = "stable_deref_trait"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a8f112729512f8e442d81f95a8a7ddf2b7c6b8a1a6f509a95864142b30cab2d3"
+
+[[package]]
+name = "static-guest"
+version = "0.1.0"
+dependencies = [
+ "wit-bindgen",
+]
 
 [[package]]
 name = "syn"

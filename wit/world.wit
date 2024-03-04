@@ -2,7 +2,6 @@ package component:dyna;
 
 world dynamic-dispatch {
     import dynamic-component;
-    export hello: func();
 }
     
 interface dynamic-component {
