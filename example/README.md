@@ -11,7 +11,7 @@ The host instantiates the dynamic guest which loads the static guest and calls i
 
 ## Running
 
-First, build the static guest:
+First, from the root of the dyna project, build the static guest:
 
 ```
 cargo component build -p static-guest

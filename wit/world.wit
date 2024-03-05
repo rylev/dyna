@@ -5,7 +5,10 @@ world dynamic-dispatch {
 }
     
 interface dynamic-component {
-    load-component: func(path: string) -> component;
+    resource engine {
+        constructor();
+        load-component: func(path: string) -> component;
+    }
 
     resource component {
         call: func(name: string, params: list<val>) -> list<val>;

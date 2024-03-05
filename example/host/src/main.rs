@@ -5,9 +5,9 @@ async fn main() {
         .next()
         .expect("expected path to component binary");
 
-    let engine = create_engine(true).unwrap();
+    let engine = create_engine().unwrap();
 
-    let mut store = wasmtime::Store::new(&engine, State::new(create_engine(false).unwrap()));
+    let mut store = wasmtime::Store::new(&engine, State::new());
     let component = wasmtime::component::Component::from_file(&engine, dynamic_guest_path).unwrap();
     let mut linker = wasmtime::component::Linker::new(&engine);
     dyna::add_to_linker(&mut linker).unwrap();
@@ -22,25 +22,20 @@ async fn main() {
     func.call_async(&mut store, ()).await.unwrap();
 }
 
-fn create_engine(async_enabled: bool) -> wasmtime::Result<wasmtime::Engine> {
+fn create_engine() -> wasmtime::Result<wasmtime::Engine> {
     let mut config = wasmtime::Config::new();
-    if async_enabled {
-        config.async_support(true);
-    }
-    config.wasm_component_model(true);
+    config.async_support(true).wasm_component_model(true);
     wasmtime::Engine::new(&config)
 }
 
 struct State {
-    engine: wasmtime::Engine,
     table: wasmtime::component::ResourceTable,
     ctx: wasmtime_wasi::preview2::WasiCtx,
 }
 
 impl State {
-    fn new(engine: wasmtime::Engine) -> Self {
+    fn new() -> Self {
         Self {
-            engine,
             table: wasmtime::component::ResourceTable::new(),
             ctx: wasmtime_wasi::preview2::WasiCtxBuilder::new()
                 .inherit_stdio()
@@ -60,10 +55,6 @@ impl wasmtime_wasi::preview2::WasiView for State {
 }
 
 impl dyna::DynamicComponentView for State {
-    fn engine(&self) -> &wasmtime::Engine {
-        &self.engine
-    }
-
     fn table(&mut self) -> &mut wasmtime::component::ResourceTable {
         &mut self.table
     }

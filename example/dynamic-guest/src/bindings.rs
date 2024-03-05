@@ -41,6 +41,52 @@ pub mod component {
       
       #[derive(Debug)]
       #[repr(transparent)]
+      pub struct Engine{
+        handle: wit_bindgen::rt::Resource<Engine>,
+      }
+      
+      impl Engine{
+        #[doc(hidden)]
+        pub unsafe fn from_handle(handle: u32) -> Self {
+          Self {
+            handle: wit_bindgen::rt::Resource::from_handle(handle),
+          }
+        }
+        
+        #[doc(hidden)]
+        pub fn into_handle(self) -> u32 {
+          wit_bindgen::rt::Resource::into_handle(self.handle)
+        }
+        
+        #[doc(hidden)]
+        pub fn handle(&self) -> u32 {
+          wit_bindgen::rt::Resource::handle(&self.handle)
+        }
+      }
+      
+      
+      unsafe impl wit_bindgen::rt::WasmResource for Engine{
+        #[inline]
+        unsafe fn drop(_handle: u32) {
+          #[cfg(not(target_arch = "wasm32"))]
+          unreachable!();
+          
+          #[cfg(target_arch = "wasm32")]
+          {
+            #[link(wasm_import_module = "component:dyna/dynamic-component")]
+            extern "C" {
+              #[link_name = "[resource-drop]engine"]
+              fn drop(_: u32);
+            }
+            
+            drop(_handle);
+          }
+        }
+      }
+      
+      
+      #[derive(Debug)]
+      #[repr(transparent)]
       pub struct Component{
         handle: wit_bindgen::rt::Resource<Component>,
       }
@@ -97,27 +143,51 @@ pub mod component {
           }
         }
       }
-      #[allow(unused_unsafe, clippy::all)]
-      pub fn load_component(path: &str,) -> Component{
-        
-        #[allow(unused_imports)]
-        use wit_bindgen::rt::{alloc, vec::Vec, string::String};
-        unsafe {
-          let vec0 = path;
-          let ptr0 = vec0.as_ptr() as i32;
-          let len0 = vec0.len() as i32;
+      impl Engine {
+        #[allow(unused_unsafe, clippy::all)]
+        pub fn new() -> Self{
           
-          #[cfg(target_arch = "wasm32")]
-          #[link(wasm_import_module = "component:dyna/dynamic-component")]
-          extern "C" {
-            #[link_name = "load-component"]
-            fn wit_import(_: i32, _: i32, ) -> i32;
+          #[allow(unused_imports)]
+          use wit_bindgen::rt::{alloc, vec::Vec, string::String};
+          unsafe {
+            
+            #[cfg(target_arch = "wasm32")]
+            #[link(wasm_import_module = "component:dyna/dynamic-component")]
+            extern "C" {
+              #[link_name = "[constructor]engine"]
+              fn wit_import() -> i32;
+            }
+            
+            #[cfg(not(target_arch = "wasm32"))]
+            fn wit_import() -> i32{ unreachable!() }
+            let ret = wit_import();
+            Engine::from_handle(ret as u32)
           }
+        }
+      }
+      impl Engine {
+        #[allow(unused_unsafe, clippy::all)]
+        pub fn load_component(&self,path: &str,) -> Component{
           
-          #[cfg(not(target_arch = "wasm32"))]
-          fn wit_import(_: i32, _: i32, ) -> i32{ unreachable!() }
-          let ret = wit_import(ptr0, len0);
-          Component::from_handle(ret as u32)
+          #[allow(unused_imports)]
+          use wit_bindgen::rt::{alloc, vec::Vec, string::String};
+          unsafe {
+            let vec0 = path;
+            let ptr0 = vec0.as_ptr() as i32;
+            let len0 = vec0.len() as i32;
+            
+            #[cfg(target_arch = "wasm32")]
+            #[link(wasm_import_module = "component:dyna/dynamic-component")]
+            extern "C" {
+              #[link_name = "[method]engine.load-component"]
+              fn wit_import(_: i32, _: i32, _: i32, ) -> i32;
+            }
+            
+            #[cfg(not(target_arch = "wasm32"))]
+            fn wit_import(_: i32, _: i32, _: i32, ) -> i32{ unreachable!() }
+            let ret = wit_import((self).handle() as i32, ptr0, len0);
+            Component::from_handle(ret as u32)
+          }
         }
       }
       impl Component {
@@ -219,7 +289,7 @@ pub mod component {
 #[cfg(target_arch = "wasm32")]
 #[link_section = "component-type:guest"]
 #[doc(hidden)]
-pub static __WIT_BINDGEN_COMPONENT_TYPE: [u8; 334] = [0, 97, 115, 109, 13, 0, 1, 0, 0, 25, 22, 119, 105, 116, 45, 99, 111, 109, 112, 111, 110, 101, 110, 116, 45, 101, 110, 99, 111, 100, 105, 110, 103, 4, 0, 7, 211, 1, 1, 65, 2, 1, 65, 4, 1, 66, 10, 4, 0, 9, 99, 111, 109, 112, 111, 110, 101, 110, 116, 3, 1, 1, 113, 1, 3, 115, 116, 114, 1, 115, 0, 4, 0, 3, 118, 97, 108, 3, 0, 1, 1, 104, 0, 1, 112, 2, 1, 64, 3, 4, 115, 101, 108, 102, 3, 4, 110, 97, 109, 101, 115, 6, 112, 97, 114, 97, 109, 115, 4, 0, 4, 4, 0, 22, 91, 109, 101, 116, 104, 111, 100, 93, 99, 111, 109, 112, 111, 110, 101, 110, 116, 46, 99, 97, 108, 108, 1, 5, 1, 105, 0, 1, 64, 1, 4, 112, 97, 116, 104, 115, 0, 6, 4, 0, 14, 108, 111, 97, 100, 45, 99, 111, 109, 112, 111, 110, 101, 110, 116, 1, 7, 3, 1, 32, 99, 111, 109, 112, 111, 110, 101, 110, 116, 58, 100, 121, 110, 97, 47, 100, 121, 110, 97, 109, 105, 99, 45, 99, 111, 109, 112, 111, 110, 101, 110, 116, 5, 0, 1, 64, 0, 1, 0, 4, 0, 5, 104, 101, 108, 108, 111, 1, 1, 4, 1, 21, 99, 111, 109, 112, 111, 110, 101, 110, 116, 58, 103, 117, 101, 115, 116, 47, 103, 117, 101, 115, 116, 4, 0, 11, 11, 1, 0, 5, 103, 117, 101, 115, 116, 3, 0, 0, 0, 70, 9, 112, 114, 111, 100, 117, 99, 101, 114, 115, 1, 12, 112, 114, 111, 99, 101, 115, 115, 101, 100, 45, 98, 121, 2, 13, 119, 105, 116, 45, 99, 111, 109, 112, 111, 110, 101, 110, 116, 6, 48, 46, 50, 49, 46, 48, 16, 119, 105, 116, 45, 98, 105, 110, 100, 103, 101, 110, 45, 114, 117, 115, 116, 6, 48, 46, 49, 56, 46, 48];
+pub static __WIT_BINDGEN_COMPONENT_TYPE: [u8; 401] = [0, 97, 115, 109, 13, 0, 1, 0, 0, 25, 22, 119, 105, 116, 45, 99, 111, 109, 112, 111, 110, 101, 110, 116, 45, 101, 110, 99, 111, 100, 105, 110, 103, 4, 0, 7, 150, 2, 1, 65, 2, 1, 65, 4, 1, 66, 15, 4, 0, 6, 101, 110, 103, 105, 110, 101, 3, 1, 4, 0, 9, 99, 111, 109, 112, 111, 110, 101, 110, 116, 3, 1, 1, 113, 1, 3, 115, 116, 114, 1, 115, 0, 4, 0, 3, 118, 97, 108, 3, 0, 2, 1, 105, 0, 1, 64, 0, 0, 4, 4, 0, 19, 91, 99, 111, 110, 115, 116, 114, 117, 99, 116, 111, 114, 93, 101, 110, 103, 105, 110, 101, 1, 5, 1, 104, 0, 1, 105, 1, 1, 64, 2, 4, 115, 101, 108, 102, 6, 4, 112, 97, 116, 104, 115, 0, 7, 4, 0, 29, 91, 109, 101, 116, 104, 111, 100, 93, 101, 110, 103, 105, 110, 101, 46, 108, 111, 97, 100, 45, 99, 111, 109, 112, 111, 110, 101, 110, 116, 1, 8, 1, 104, 1, 1, 112, 3, 1, 64, 3, 4, 115, 101, 108, 102, 9, 4, 110, 97, 109, 101, 115, 6, 112, 97, 114, 97, 109, 115, 10, 0, 10, 4, 0, 22, 91, 109, 101, 116, 104, 111, 100, 93, 99, 111, 109, 112, 111, 110, 101, 110, 116, 46, 99, 97, 108, 108, 1, 11, 3, 1, 32, 99, 111, 109, 112, 111, 110, 101, 110, 116, 58, 100, 121, 110, 97, 47, 100, 121, 110, 97, 109, 105, 99, 45, 99, 111, 109, 112, 111, 110, 101, 110, 116, 5, 0, 1, 64, 0, 1, 0, 4, 0, 5, 104, 101, 108, 108, 111, 1, 1, 4, 1, 21, 99, 111, 109, 112, 111, 110, 101, 110, 116, 58, 103, 117, 101, 115, 116, 47, 103, 117, 101, 115, 116, 4, 0, 11, 11, 1, 0, 5, 103, 117, 101, 115, 116, 3, 0, 0, 0, 70, 9, 112, 114, 111, 100, 117, 99, 101, 114, 115, 1, 12, 112, 114, 111, 99, 101, 115, 115, 101, 100, 45, 98, 121, 2, 13, 119, 105, 116, 45, 99, 111, 109, 112, 111, 110, 101, 110, 116, 6, 48, 46, 50, 49, 46, 48, 16, 119, 105, 116, 45, 98, 105, 110, 100, 103, 101, 110, 45, 114, 117, 115, 116, 6, 48, 46, 49, 56, 46, 48];
 
 #[inline(never)]
 #[doc(hidden)]
