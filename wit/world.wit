@@ -21,16 +21,61 @@ interface dynamic-component {
     }
 
     variant export-kind {
-        function(function)
+        function(function),
+        %interface(%interface)
     }
 
     record function {
         params: list<tuple<string, type-item>>,
-        results: type-item
+        %result: type-item
     }
 
-    variant type-item {
-        str
+    record %interface {
+        functions: list<tuple<string, function>>
+    }
+
+    resource type-item {
+        kind: func() -> type-item-kind;
+    }
+
+    variant type-item-kind {
+        %bool, 
+        %u8,
+        %u16,
+        %u32,
+        %u64,
+        %s8,
+        %s16,
+        %s32,
+        %s64,
+        %f32,
+        %f64,
+        %char,
+        %string,
+        %list(type-item),
+        %tuple(list<type-item>),
+        %option(type-item),
+        %result(result-type),
+        %enum(enum-type),
+        %variant(variant-type),
+        %record(record-type),
+    }
+
+    record result-type {
+        ok: option<type-item>,
+        err: option<type-item>
+    }
+
+    record record-type {
+        name: string
+    }
+    
+    record enum-type {
+        name: string
+    }
+    
+    record variant-type {
+        name: string
     }
 
     variant val {

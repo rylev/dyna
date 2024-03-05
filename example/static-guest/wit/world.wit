@@ -3,4 +3,17 @@ package component:example;
 /// An example world for the component to target.
 world example {
     export hello-world: func() -> string;
+    export foo;
 }
+
+interface foo {
+    use baz.{bar};
+    hello-world: func() -> bar;
+}
+
+interface baz {
+    record bar {
+        field: list<u8>
+    }
+}
+

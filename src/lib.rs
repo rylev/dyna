@@ -1,8 +1,15 @@
 use anyhow::Context;
 use component::dyna::dynamic_component::{Host, HostEngine};
-use wit_parser::Type;
 
-wasmtime::component::bindgen!();
+wasmtime::component::bindgen!({
+    with: {
+        "component:dyna/dynamic-component/engine": Engine,
+        "component:dyna/dynamic-component/component": ComponentState,
+        "component:dyna/dynamic-component/type-item": TypeItem,
+    }
+});
+
+pub use wasmtime::Engine;
 
 /// Add the dynamic component to the linker.
 pub fn add_to_linker<T: DynamicComponentView>(
@@ -45,7 +52,8 @@ where
         >,
     > {
         let engine = self
-            .borrow_engine(self_)
+            .table()
+            .get(&self_)
             .map_err(|e| anyhow::anyhow!("{e}"))?;
         let component_state = match ComponentState::load(engine, &bytes) {
             Ok(c) => c,
@@ -88,7 +96,8 @@ where
         >,
     > {
         let state = self
-            .borrow_component(self_)
+            .table()
+            .get_mut(&self_)
             .map_err(|e| anyhow::anyhow!("{e}"))?;
         Ok(state.call_method(&name, args))
     }
@@ -96,29 +105,52 @@ where
     fn reflect(
         &mut self,
         self_: wasmtime::component::Resource<component::dyna::dynamic_component::Component>,
-    ) -> Result<Vec<component::dyna::dynamic_component::ExportItem>, anyhow::Error> {
+    ) -> wasmtime::Result<Vec<component::dyna::dynamic_component::ExportItem>> {
         let state = self
-            .borrow_component(self_)
+            .table()
+            .get(&self_)
             .map_err(|e| anyhow::anyhow!("{e}"))?;
-        Ok(state.reflect())
+        Ok(state.resolver.clone().reflect(self.table()))
     }
 
     fn drop(
         &mut self,
         self_: wasmtime::component::Resource<component::dyna::dynamic_component::Component>,
     ) -> wasmtime::Result<()> {
-        let self_: wasmtime::component::Resource<ComponentState> =
-            wasmtime::component::Resource::new_own(self_.rep());
         self.table().delete(self_).unwrap();
         Ok(())
     }
 }
 
-struct ComponentState {
+impl<T> component::dyna::dynamic_component::HostTypeItem for T
+where
+    T: DynamicComponentView,
+{
+    fn kind(
+        &mut self,
+        self_: wasmtime::component::Resource<TypeItem>,
+    ) -> wasmtime::Result<component::dyna::dynamic_component::TypeItemKind> {
+        let typ = self
+            .table()
+            .get(&self_)
+            .map_err(|e| anyhow::anyhow!("{e}"))?
+            .clone();
+        Ok(typ.convert_type(self.table()))
+    }
+
+    fn drop(
+        &mut self,
+        rep: wasmtime::component::Resource<component::dyna::dynamic_component::TypeItem>,
+    ) -> wasmtime::Result<()> {
+        self.table().delete(rep)?;
+        Ok(())
+    }
+}
+
+pub struct ComponentState {
     store: wasmtime::Store<()>,
     instance: wasmtime::component::Instance,
-    resolve: wit_parser::Resolve,
-    world_id: wit_parser::WorldId,
+    resolver: Resolver,
 }
 
 impl ComponentState {
@@ -143,8 +175,7 @@ impl ComponentState {
         Ok(ComponentState {
             instance,
             store,
-            resolve,
-            world_id,
+            resolver: Resolver { resolve, world_id },
         })
     }
 
@@ -183,33 +214,56 @@ impl ComponentState {
             })
             .collect())
     }
+}
 
-    fn reflect(&self) -> Vec<component::dyna::dynamic_component::ExportItem> {
-        self.world()
+#[derive(Clone)]
+struct Resolver {
+    resolve: wit_parser::Resolve,
+    world_id: wit_parser::WorldId,
+}
+
+impl Resolver {
+    fn reflect(
+        &self,
+        resource_table: &mut wasmtime::component::ResourceTable,
+    ) -> Vec<component::dyna::dynamic_component::ExportItem> {
+        let world = self.world();
+        world
             .exports
             .iter()
             .map(|(key, item)| match item {
-                wit_parser::WorldItem::Interface(_) => todo!(),
+                wit_parser::WorldItem::Interface(i) => {
+                    let interface = self.resolve.interfaces.get(*i).unwrap();
+                    let name = match key {
+                        wit_parser::WorldKey::Name(name) => name,
+                        wit_parser::WorldKey::Interface(_) => interface
+                            .name
+                            .as_ref()
+                            .expect("non-inlined interface still did not have a name"),
+                    };
+                    component::dyna::dynamic_component::ExportItem {
+                        name: name.clone(),
+                        kind: component::dyna::dynamic_component::ExportKind::Interface(
+                            component::dyna::dynamic_component::Interface {
+                                functions: interface
+                                    .functions
+                                    .iter()
+                                    .map(|(name, func)| {
+                                        (
+                                            name.clone(),
+                                            convert_function(func, &self.resolve, resource_table),
+                                        )
+                                    })
+                                    .collect(),
+                            },
+                        ),
+                    }
+                }
                 wit_parser::WorldItem::Function(f) => {
                     component::dyna::dynamic_component::ExportItem {
                         name: key.clone().unwrap_name(),
                         kind: component::dyna::dynamic_component::ExportKind::Function(
-                            component::dyna::dynamic_component::Function {
-                                params: f
-                                    .params
-                                    .iter()
-                                    .map(|(param_name, param_type)| {
-                                        let param_type = match param_type {
-                                            Type::String => {
-                                                component::dyna::dynamic_component::TypeItem::Str
-                                            }
-                                            _ => todo!(),
-                                        };
-                                        (param_name.clone(), param_type)
-                                    })
-                                    .collect(),
-                                results: component::dyna::dynamic_component::TypeItem::Str,
-                            },
+                            convert_function(f, &self.resolve, resource_table),
                         ),
                     }
                 }
@@ -226,42 +280,124 @@ impl ComponentState {
     }
 }
 
-trait EngineExtension {
-    fn borrow_engine(
-        &mut self,
-        resource: wasmtime::component::Resource<component::dyna::dynamic_component::Engine>,
-    ) -> Result<&wasmtime::Engine, wasmtime::component::ResourceTableError>;
-}
-
-impl<T> EngineExtension for T
-where
-    T: DynamicComponentView,
-{
-    fn borrow_engine(
-        &mut self,
-        resource: wasmtime::component::Resource<component::dyna::dynamic_component::Engine>,
-    ) -> Result<&wasmtime::Engine, wasmtime::component::ResourceTableError> {
-        let self_ = wasmtime::component::Resource::new_borrow(resource.rep());
-        self.table().get(&self_)
+fn convert_function(
+    function: &wit_parser::Function,
+    resolve: &wit_parser::Resolve,
+    resource_table: &mut wasmtime::component::ResourceTable,
+) -> component::dyna::dynamic_component::Function {
+    component::dyna::dynamic_component::Function {
+        params: function
+            .params
+            .iter()
+            .map(|(param_name, param_type)| {
+                (
+                    param_name.clone(),
+                    push_type(param_type, resolve, resource_table).unwrap(),
+                )
+            })
+            .collect(),
+        result: match &function.results {
+            wit_parser::Results::Named(_) => todo!("Handle named results"),
+            wit_parser::Results::Anon(t) => push_type(t, resolve, resource_table).unwrap(),
+        },
     }
 }
 
-trait ComponentExtension {
-    fn borrow_component(
-        &mut self,
-        resource: wasmtime::component::Resource<component::dyna::dynamic_component::Component>,
-    ) -> Result<&mut ComponentState, wasmtime::component::ResourceTableError>;
+#[derive(Clone)]
+pub struct TypeItem {
+    resolve: wit_parser::Resolve,
+    typ: wit_parser::Type,
 }
 
-impl<T> ComponentExtension for T
-where
-    T: DynamicComponentView,
-{
-    fn borrow_component(
-        &mut self,
-        resource: wasmtime::component::Resource<component::dyna::dynamic_component::Component>,
-    ) -> Result<&mut ComponentState, wasmtime::component::ResourceTableError> {
-        let self_ = wasmtime::component::Resource::new_borrow(resource.rep());
-        self.table().get_mut(&self_)
+impl TypeItem {
+    fn convert_type(
+        &self,
+        resource_table: &mut wasmtime::component::ResourceTable,
+    ) -> component::dyna::dynamic_component::TypeItemKind {
+        use component::dyna::dynamic_component::{
+            EnumType, RecordType, ResultType, TypeItemKind, VariantType,
+        };
+        use wit_parser::Type::*;
+        match &self.typ {
+            String => TypeItemKind::String,
+            Bool => TypeItemKind::Bool,
+            U8 => TypeItemKind::U8,
+            U16 => TypeItemKind::U16,
+            U32 => TypeItemKind::U32,
+            U64 => TypeItemKind::U64,
+            S8 => TypeItemKind::S8,
+            S16 => TypeItemKind::S16,
+            S32 => TypeItemKind::S32,
+            S64 => TypeItemKind::S64,
+            Float32 => TypeItemKind::F32,
+            Float64 => TypeItemKind::F64,
+            Char => TypeItemKind::Char,
+            Id(i) => {
+                let typ = &self.resolve.types.get(*i).unwrap();
+                match &typ.kind {
+                    wit_parser::TypeDefKind::Tuple(t) => TypeItemKind::Tuple(
+                        t.types
+                            .iter()
+                            .map(|t| push_type(t, &self.resolve, resource_table).unwrap())
+                            .collect(),
+                    ),
+                    wit_parser::TypeDefKind::Option(o) => {
+                        TypeItemKind::Option(push_type(o, &self.resolve, resource_table).unwrap())
+                    }
+                    wit_parser::TypeDefKind::Result(r) => {
+                        let ok =
+                            r.ok.as_ref()
+                                .map(|t| push_type(t, &self.resolve, resource_table))
+                                .transpose()
+                                .unwrap();
+                        let err =
+                            r.ok.as_ref()
+                                .map(|t| push_type(t, &self.resolve, resource_table))
+                                .transpose()
+                                .unwrap();
+                        TypeItemKind::Result(ResultType { ok, err })
+                    }
+                    wit_parser::TypeDefKind::List(l) => {
+                        TypeItemKind::List(push_type(l, &self.resolve, resource_table).unwrap())
+                    }
+                    wit_parser::TypeDefKind::Enum(_) => TypeItemKind::Enum(EnumType {
+                        name: typ.name.clone().unwrap(),
+                    }),
+                    wit_parser::TypeDefKind::Variant(_) => TypeItemKind::Variant(VariantType {
+                        name: typ.name.clone().unwrap(),
+                    }),
+                    wit_parser::TypeDefKind::Record(_) => TypeItemKind::Record(RecordType {
+                        name: typ.name.clone().unwrap(),
+                    }),
+                    wit_parser::TypeDefKind::Resource => todo!("handle resources"),
+                    wit_parser::TypeDefKind::Type(t) => Self {
+                        resolve: self.resolve.clone(),
+                        typ: t.clone(),
+                    }
+                    .convert_type(resource_table),
+                    wit_parser::TypeDefKind::Unknown => {
+                        panic!("Unresolved package found in resolver")
+                    }
+                    t => {
+                        panic!("'{t:?}' type is not supported")
+                    }
+                }
+            }
+        }
     }
+}
+
+fn push_type(
+    typ: &wit_parser::Type,
+    resolve: &wit_parser::Resolve,
+    resource_table: &mut wasmtime::component::ResourceTable,
+) -> Result<
+    wasmtime::component::Resource<component::dyna::dynamic_component::TypeItem>,
+    wasmtime::component::ResourceTableError,
+> {
+    let typ = TypeItem {
+        resolve: resolve.clone(),
+        typ: typ.clone(),
+    };
+    resource_table.push(typ)
 }
