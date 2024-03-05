@@ -11,7 +11,7 @@ interface dynamic-component {
     }
 
     resource component {
-        call: func(name: string, params: list<val>) -> list<val>;
+        call: func(name: string, params: list<val>) -> result<list<val>, call-error>;
     }
 
     variant val {
@@ -20,5 +20,9 @@ interface dynamic-component {
 
     variant load-error {
         invalid-bytes(string)
+    }
+
+    variant call-error {
+        no-function
     }
 }

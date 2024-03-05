@@ -163,6 +163,26 @@ pub mod component {
       }
       
       impl std::error::Error for LoadError {}
+      #[derive(Clone, Copy)]
+      pub enum CallError{
+        NoFunction,
+      }
+      impl ::core::fmt::Debug for CallError {
+        fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
+          match self {
+            CallError::NoFunction => {
+              f.debug_tuple("CallError::NoFunction").finish()
+            }
+          }
+        }
+      }
+      impl ::core::fmt::Display for CallError {
+        fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
+          write!(f, "{:?}", self)
+        }
+      }
+      
+      impl std::error::Error for CallError {}
       impl Engine {
         #[allow(unused_unsafe, clippy::all)]
         pub fn new() -> Self{
@@ -249,14 +269,14 @@ pub mod component {
       }
       impl Component {
         #[allow(unused_unsafe, clippy::all)]
-        pub fn call(&self,name: &str,params: &[Val],) -> wit_bindgen::rt::vec::Vec::<Val>{
+        pub fn call(&self,name: &str,params: &[Val],) -> Result<wit_bindgen::rt::vec::Vec::<Val>,CallError>{
           
           #[allow(unused_imports)]
           use wit_bindgen::rt::{alloc, vec::Vec, string::String};
           unsafe {
             
             #[repr(align(4))]
-            struct RetArea([u8; 8]);
+            struct RetArea([u8; 12]);
             let mut ret_area = ::core::mem::MaybeUninit::<RetArea>::uninit();
             let vec0 = name;
             let ptr0 = vec0.as_ptr() as i32;
@@ -301,39 +321,63 @@ pub mod component {
             #[cfg(not(target_arch = "wasm32"))]
             fn wit_import(_: i32, _: i32, _: i32, _: i32, _: i32, _: i32, ){ unreachable!() }
             wit_import((self).handle() as i32, ptr0, len0, result2 as i32, len2, ptr3);
-            let l4 = *((ptr3 + 0) as *const i32);
-            let l5 = *((ptr3 + 4) as *const i32);
-            let base11 = l4;
-            let len11 = l5;
-            let mut result11 = Vec::with_capacity(len11 as usize);
-            for i in 0..len11 {
-              let base = base11 + i * 12;
-              let e11 = {
-                let l6 = i32::from(*((base + 0) as *const u8));
-                let v10 = match l6 {
-                  n => {
-                    debug_assert_eq!(n, 0, "invalid enum discriminant");
-                    let e10 = {
-                      let l7 = *((base + 4) as *const i32);
-                      let l8 = *((base + 8) as *const i32);
-                      let len9 = l8 as usize;
-                      let bytes9 = Vec::from_raw_parts(l7 as *mut _, len9, len9);
-                      
-                      wit_bindgen::rt::string_lift(bytes9)
-                    };
-                    Val::Str(e10)
-                  }
-                };
-                
-                v10
-              };
-              result11.push(e11);
-            }
-            wit_bindgen::rt::dealloc(base11, (len11 as usize) * 12, 4);
+            let l4 = i32::from(*((ptr3 + 0) as *const u8));
             if layout2.size() != 0 {
               alloc::dealloc(result2, layout2);
             }
-            result11
+            match l4 {
+              0 => {
+                let e = {
+                  let l5 = *((ptr3 + 4) as *const i32);
+                  let l6 = *((ptr3 + 8) as *const i32);
+                  let base12 = l5;
+                  let len12 = l6;
+                  let mut result12 = Vec::with_capacity(len12 as usize);
+                  for i in 0..len12 {
+                    let base = base12 + i * 12;
+                    let e12 = {
+                      let l7 = i32::from(*((base + 0) as *const u8));
+                      let v11 = match l7 {
+                        n => {
+                          debug_assert_eq!(n, 0, "invalid enum discriminant");
+                          let e11 = {
+                            let l8 = *((base + 4) as *const i32);
+                            let l9 = *((base + 8) as *const i32);
+                            let len10 = l9 as usize;
+                            let bytes10 = Vec::from_raw_parts(l8 as *mut _, len10, len10);
+                            
+                            wit_bindgen::rt::string_lift(bytes10)
+                          };
+                          Val::Str(e11)
+                        }
+                      };
+                      
+                      v11
+                    };
+                    result12.push(e12);
+                  }
+                  wit_bindgen::rt::dealloc(base12, (len12 as usize) * 12, 4);
+                  
+                  result12
+                };
+                Ok(e)
+              }
+              1 => {
+                let e = {
+                  let l13 = i32::from(*((ptr3 + 4) as *const u8));
+                  let v14 = match l13 {
+                    n => {
+                      debug_assert_eq!(n, 0, "invalid enum discriminant");
+                      CallError::NoFunction
+                    }
+                  };
+                  
+                  v14
+                };
+                Err(e)
+              }
+              _ => wit_bindgen::rt::invalid_enum_discriminant(),
+            }
           }
         }
       }
@@ -346,7 +390,7 @@ pub mod component {
 #[cfg(target_arch = "wasm32")]
 #[link_section = "component-type:guest"]
 #[doc(hidden)]
-pub static __WIT_BINDGEN_COMPONENT_TYPE: [u8; 447] = [0, 97, 115, 109, 13, 0, 1, 0, 0, 25, 22, 119, 105, 116, 45, 99, 111, 109, 112, 111, 110, 101, 110, 116, 45, 101, 110, 99, 111, 100, 105, 110, 103, 4, 0, 7, 196, 2, 1, 65, 2, 1, 65, 4, 1, 66, 19, 4, 0, 6, 101, 110, 103, 105, 110, 101, 3, 1, 4, 0, 9, 99, 111, 109, 112, 111, 110, 101, 110, 116, 3, 1, 1, 113, 1, 3, 115, 116, 114, 1, 115, 0, 4, 0, 3, 118, 97, 108, 3, 0, 2, 1, 113, 1, 13, 105, 110, 118, 97, 108, 105, 100, 45, 98, 121, 116, 101, 115, 1, 115, 0, 4, 0, 10, 108, 111, 97, 100, 45, 101, 114, 114, 111, 114, 3, 0, 4, 1, 105, 0, 1, 64, 0, 0, 6, 4, 0, 19, 91, 99, 111, 110, 115, 116, 114, 117, 99, 116, 111, 114, 93, 101, 110, 103, 105, 110, 101, 1, 7, 1, 104, 0, 1, 112, 125, 1, 105, 1, 1, 106, 1, 10, 1, 5, 1, 64, 2, 4, 115, 101, 108, 102, 8, 5, 98, 121, 116, 101, 115, 9, 0, 11, 4, 0, 29, 91, 109, 101, 116, 104, 111, 100, 93, 101, 110, 103, 105, 110, 101, 46, 108, 111, 97, 100, 45, 99, 111, 109, 112, 111, 110, 101, 110, 116, 1, 12, 1, 104, 1, 1, 112, 3, 1, 64, 3, 4, 115, 101, 108, 102, 13, 4, 110, 97, 109, 101, 115, 6, 112, 97, 114, 97, 109, 115, 14, 0, 14, 4, 0, 22, 91, 109, 101, 116, 104, 111, 100, 93, 99, 111, 109, 112, 111, 110, 101, 110, 116, 46, 99, 97, 108, 108, 1, 15, 3, 1, 32, 99, 111, 109, 112, 111, 110, 101, 110, 116, 58, 100, 121, 110, 97, 47, 100, 121, 110, 97, 109, 105, 99, 45, 99, 111, 109, 112, 111, 110, 101, 110, 116, 5, 0, 1, 64, 0, 1, 0, 4, 0, 5, 104, 101, 108, 108, 111, 1, 1, 4, 1, 21, 99, 111, 109, 112, 111, 110, 101, 110, 116, 58, 103, 117, 101, 115, 116, 47, 103, 117, 101, 115, 116, 4, 0, 11, 11, 1, 0, 5, 103, 117, 101, 115, 116, 3, 0, 0, 0, 70, 9, 112, 114, 111, 100, 117, 99, 101, 114, 115, 1, 12, 112, 114, 111, 99, 101, 115, 115, 101, 100, 45, 98, 121, 2, 13, 119, 105, 116, 45, 99, 111, 109, 112, 111, 110, 101, 110, 116, 6, 48, 46, 50, 49, 46, 48, 16, 119, 105, 116, 45, 98, 105, 110, 100, 103, 101, 110, 45, 114, 117, 115, 116, 6, 48, 46, 49, 56, 46, 48];
+pub static __WIT_BINDGEN_COMPONENT_TYPE: [u8; 486] = [0, 97, 115, 109, 13, 0, 1, 0, 0, 25, 22, 119, 105, 116, 45, 99, 111, 109, 112, 111, 110, 101, 110, 116, 45, 101, 110, 99, 111, 100, 105, 110, 103, 4, 0, 7, 235, 2, 1, 65, 2, 1, 65, 4, 1, 66, 22, 4, 0, 6, 101, 110, 103, 105, 110, 101, 3, 1, 4, 0, 9, 99, 111, 109, 112, 111, 110, 101, 110, 116, 3, 1, 1, 113, 1, 3, 115, 116, 114, 1, 115, 0, 4, 0, 3, 118, 97, 108, 3, 0, 2, 1, 113, 1, 13, 105, 110, 118, 97, 108, 105, 100, 45, 98, 121, 116, 101, 115, 1, 115, 0, 4, 0, 10, 108, 111, 97, 100, 45, 101, 114, 114, 111, 114, 3, 0, 4, 1, 113, 1, 11, 110, 111, 45, 102, 117, 110, 99, 116, 105, 111, 110, 0, 0, 4, 0, 10, 99, 97, 108, 108, 45, 101, 114, 114, 111, 114, 3, 0, 6, 1, 105, 0, 1, 64, 0, 0, 8, 4, 0, 19, 91, 99, 111, 110, 115, 116, 114, 117, 99, 116, 111, 114, 93, 101, 110, 103, 105, 110, 101, 1, 9, 1, 104, 0, 1, 112, 125, 1, 105, 1, 1, 106, 1, 12, 1, 5, 1, 64, 2, 4, 115, 101, 108, 102, 10, 5, 98, 121, 116, 101, 115, 11, 0, 13, 4, 0, 29, 91, 109, 101, 116, 104, 111, 100, 93, 101, 110, 103, 105, 110, 101, 46, 108, 111, 97, 100, 45, 99, 111, 109, 112, 111, 110, 101, 110, 116, 1, 14, 1, 104, 1, 1, 112, 3, 1, 106, 1, 16, 1, 7, 1, 64, 3, 4, 115, 101, 108, 102, 15, 4, 110, 97, 109, 101, 115, 6, 112, 97, 114, 97, 109, 115, 16, 0, 17, 4, 0, 22, 91, 109, 101, 116, 104, 111, 100, 93, 99, 111, 109, 112, 111, 110, 101, 110, 116, 46, 99, 97, 108, 108, 1, 18, 3, 1, 32, 99, 111, 109, 112, 111, 110, 101, 110, 116, 58, 100, 121, 110, 97, 47, 100, 121, 110, 97, 109, 105, 99, 45, 99, 111, 109, 112, 111, 110, 101, 110, 116, 5, 0, 1, 64, 0, 1, 0, 4, 0, 5, 104, 101, 108, 108, 111, 1, 1, 4, 1, 21, 99, 111, 109, 112, 111, 110, 101, 110, 116, 58, 103, 117, 101, 115, 116, 47, 103, 117, 101, 115, 116, 4, 0, 11, 11, 1, 0, 5, 103, 117, 101, 115, 116, 3, 0, 0, 0, 70, 9, 112, 114, 111, 100, 117, 99, 101, 114, 115, 1, 12, 112, 114, 111, 99, 101, 115, 115, 101, 100, 45, 98, 121, 2, 13, 119, 105, 116, 45, 99, 111, 109, 112, 111, 110, 101, 110, 116, 6, 48, 46, 50, 49, 46, 48, 16, 119, 105, 116, 45, 98, 105, 110, 100, 103, 101, 110, 45, 114, 117, 115, 116, 6, 48, 46, 49, 56, 46, 48];
 
 #[inline(never)]
 #[doc(hidden)]

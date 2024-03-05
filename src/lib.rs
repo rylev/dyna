@@ -43,15 +43,14 @@ where
             component::dyna::dynamic_component::LoadError,
         >,
     > {
-        let self_ = wasmtime::component::Resource::new_borrow(self_.rep());
-        let engine = self.table().get(&self_).unwrap();
-        let mut store = wasmtime::Store::new(engine, ());
-        let component = wasmtime::component::Component::new(engine, bytes).map_err(|e| {
-            component::dyna::dynamic_component::LoadError::InvalidBytes(e.to_string())
-        })?;
-        let linker = wasmtime::component::Linker::new(engine);
-        let instance = linker.instantiate(&mut store, &component).unwrap();
-        let component_state = ComponentState { instance, store };
+        let engine = self
+            .borrow_engine(self_)
+            .map_err(|e| anyhow::anyhow!("{e}"))?;
+        let component_state = match ComponentState::load(engine, &bytes) {
+            Ok(c) => c,
+            Err(e) => return Ok(Err(e)),
+        };
+
         let resource = self
             .table()
             .push(component_state)
@@ -81,35 +80,16 @@ where
         self_: wasmtime::component::Resource<component::dyna::dynamic_component::Component>,
         name: String,
         args: Vec<component::dyna::dynamic_component::Val>,
-    ) -> wasmtime::Result<Vec<component::dyna::dynamic_component::Val>> {
-        let self_ = wasmtime::component::Resource::new_borrow(self_.rep());
-        let state: &mut ComponentState = self.table().get_mut(&self_).unwrap();
-        let func = state
-            .instance
-            .get_func(&mut state.store, &name)
-            .with_context(|| format!("failed to find function export `{name}`"))?;
-        let params = args
-            .into_iter()
-            .map(|a| match a {
-                component::dyna::dynamic_component::Val::Str(s) => {
-                    wasmtime::component::Val::String(s.into())
-                }
-            })
-            .collect::<Vec<_>>();
-        let mut result = [wasmtime::component::Val::String(
-            String::from("").into_boxed_str(),
-        )];
-        func.call(&mut state.store, &params, &mut result)?;
-        let results = result
-            .into_iter()
-            .map(|v| match v {
-                wasmtime::component::Val::String(s) => {
-                    component::dyna::dynamic_component::Val::Str(s.into())
-                }
-                _ => todo!(""),
-            })
-            .collect();
-        Ok(results)
+    ) -> wasmtime::Result<
+        Result<
+            Vec<component::dyna::dynamic_component::Val>,
+            component::dyna::dynamic_component::CallError,
+        >,
+    > {
+        let state = self
+            .borrow_component(self_)
+            .map_err(|e| anyhow::anyhow!("{e}"))?;
+        Ok(state.call_method(&name, args))
     }
 
     fn drop(
@@ -126,4 +106,95 @@ where
 struct ComponentState {
     store: wasmtime::Store<()>,
     instance: wasmtime::component::Instance,
+}
+
+impl ComponentState {
+    fn load(
+        engine: &wasmtime::Engine,
+        bytes: &[u8],
+    ) -> Result<Self, component::dyna::dynamic_component::LoadError> {
+        let mut store = wasmtime::Store::new(engine, ());
+        let component = wasmtime::component::Component::new(engine, bytes).map_err(|e| {
+            component::dyna::dynamic_component::LoadError::InvalidBytes(e.to_string())
+        })?;
+        let linker = wasmtime::component::Linker::new(engine);
+        let instance = linker.instantiate(&mut store, &component).unwrap();
+        Ok(ComponentState { instance, store })
+    }
+
+    fn call_method(
+        &mut self,
+        name: &str,
+        args: Vec<component::dyna::dynamic_component::Val>,
+    ) -> Result<
+        Vec<component::dyna::dynamic_component::Val>,
+        component::dyna::dynamic_component::CallError,
+    > {
+        let func = self
+            .instance
+            .get_func(&mut self.store, &name)
+            .ok_or(component::dyna::dynamic_component::CallError::NoFunction)?;
+        let params = args
+            .into_iter()
+            .map(|a| match a {
+                component::dyna::dynamic_component::Val::Str(s) => {
+                    wasmtime::component::Val::String(s.into())
+                }
+            })
+            .collect::<Vec<_>>();
+        let mut result = [wasmtime::component::Val::String(
+            String::from("").into_boxed_str(),
+        )];
+        func.call(&mut self.store, &params, &mut result)
+            .expect("TODO: other error");
+        Ok(result
+            .into_iter()
+            .map(|v| match v {
+                wasmtime::component::Val::String(s) => {
+                    component::dyna::dynamic_component::Val::Str(s.into())
+                }
+                _ => todo!(""),
+            })
+            .collect())
+    }
+}
+
+trait EngineExtension {
+    fn borrow_engine(
+        &mut self,
+        resource: wasmtime::component::Resource<component::dyna::dynamic_component::Engine>,
+    ) -> Result<&wasmtime::Engine, wasmtime::component::ResourceTableError>;
+}
+
+impl<T> EngineExtension for T
+where
+    T: DynamicComponentView,
+{
+    fn borrow_engine(
+        &mut self,
+        resource: wasmtime::component::Resource<component::dyna::dynamic_component::Engine>,
+    ) -> Result<&wasmtime::Engine, wasmtime::component::ResourceTableError> {
+        let self_ = wasmtime::component::Resource::new_borrow(resource.rep());
+        self.table().get(&self_)
+    }
+}
+
+trait ComponentExtension {
+    fn borrow_component(
+        &mut self,
+        resource: wasmtime::component::Resource<component::dyna::dynamic_component::Component>,
+    ) -> Result<&mut ComponentState, wasmtime::component::ResourceTableError>;
+}
+
+impl<T> ComponentExtension for T
+where
+    T: DynamicComponentView,
+{
+    fn borrow_component(
+        &mut self,
+        resource: wasmtime::component::Resource<component::dyna::dynamic_component::Component>,
+    ) -> Result<&mut ComponentState, wasmtime::component::ResourceTableError> {
+        let self_ = wasmtime::component::Resource::new_borrow(resource.rep());
+        self.table().get_mut(&self_)
+    }
 }
