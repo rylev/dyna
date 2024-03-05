@@ -12,6 +12,25 @@ interface dynamic-component {
 
     resource component {
         call: func(name: string, params: list<val>) -> result<list<val>, call-error>;
+        reflect: func() -> list<export-item>;
+    }
+
+    record export-item {
+        name: string,
+        kind: export-kind,
+    }
+
+    variant export-kind {
+        function(function)
+    }
+
+    record function {
+        params: list<tuple<string, type-item>>,
+        results: type-item
+    }
+
+    variant type-item {
+        str
     }
 
     variant val {

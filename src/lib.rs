@@ -1,5 +1,6 @@
 use anyhow::Context;
 use component::dyna::dynamic_component::{Host, HostEngine};
+use wit_parser::Type;
 
 wasmtime::component::bindgen!();
 
@@ -92,6 +93,16 @@ where
         Ok(state.call_method(&name, args))
     }
 
+    fn reflect(
+        &mut self,
+        self_: wasmtime::component::Resource<component::dyna::dynamic_component::Component>,
+    ) -> Result<Vec<component::dyna::dynamic_component::ExportItem>, anyhow::Error> {
+        let state = self
+            .borrow_component(self_)
+            .map_err(|e| anyhow::anyhow!("{e}"))?;
+        Ok(state.reflect())
+    }
+
     fn drop(
         &mut self,
         self_: wasmtime::component::Resource<component::dyna::dynamic_component::Component>,
@@ -106,6 +117,8 @@ where
 struct ComponentState {
     store: wasmtime::Store<()>,
     instance: wasmtime::component::Instance,
+    resolve: wit_parser::Resolve,
+    world_id: wit_parser::WorldId,
 }
 
 impl ComponentState {
@@ -119,7 +132,20 @@ impl ComponentState {
         })?;
         let linker = wasmtime::component::Linker::new(engine);
         let instance = linker.instantiate(&mut store, &component).unwrap();
-        Ok(ComponentState { instance, store })
+
+        let Ok(wit_component::DecodedWasm::Component(resolve, world_id)) =
+            wit_component::decode(bytes)
+        else {
+            return Err(component::dyna::dynamic_component::LoadError::InvalidBytes(
+                "found wit package instead of the expect WebAssembly component".into(),
+            ));
+        };
+        Ok(ComponentState {
+            instance,
+            store,
+            resolve,
+            world_id,
+        })
     }
 
     fn call_method(
@@ -156,6 +182,47 @@ impl ComponentState {
                 _ => todo!(""),
             })
             .collect())
+    }
+
+    fn reflect(&self) -> Vec<component::dyna::dynamic_component::ExportItem> {
+        self.world()
+            .exports
+            .iter()
+            .map(|(key, item)| match item {
+                wit_parser::WorldItem::Interface(_) => todo!(),
+                wit_parser::WorldItem::Function(f) => {
+                    component::dyna::dynamic_component::ExportItem {
+                        name: key.clone().unwrap_name(),
+                        kind: component::dyna::dynamic_component::ExportKind::Function(
+                            component::dyna::dynamic_component::Function {
+                                params: f
+                                    .params
+                                    .iter()
+                                    .map(|(param_name, param_type)| {
+                                        let param_type = match param_type {
+                                            Type::String => {
+                                                component::dyna::dynamic_component::TypeItem::Str
+                                            }
+                                            _ => todo!(),
+                                        };
+                                        (param_name.clone(), param_type)
+                                    })
+                                    .collect(),
+                                results: component::dyna::dynamic_component::TypeItem::Str,
+                            },
+                        ),
+                    }
+                }
+                wit_parser::WorldItem::Type(_) => todo!(),
+            })
+            .collect()
+    }
+
+    fn world(&self) -> &wit_parser::World {
+        self.resolve
+            .worlds
+            .get(self.world_id)
+            .expect("world_id is not found in the resolved wit package")
     }
 }
 
