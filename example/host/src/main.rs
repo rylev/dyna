@@ -35,9 +35,13 @@ struct State {
 
 impl State {
     fn new() -> Self {
+        let dir = cap_std::fs::Dir::open_ambient_dir(".", cap_std::ambient_authority()).unwrap();
+        let dir_perms = wasmtime_wasi::preview2::DirPerms::all();
+        let file_perms = wasmtime_wasi::preview2::FilePerms::all();
         Self {
             table: wasmtime::component::ResourceTable::new(),
             ctx: wasmtime_wasi::preview2::WasiCtxBuilder::new()
+                .preopened_dir(dir, dir_perms, file_perms, "/")
                 .inherit_stdio()
                 .build(),
         }

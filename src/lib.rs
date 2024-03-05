@@ -36,15 +36,19 @@ where
     fn load_component(
         &mut self,
         self_: wasmtime::component::Resource<component::dyna::dynamic_component::Engine>,
-        path: String,
+        bytes: Vec<u8>,
     ) -> wasmtime::Result<
-        wasmtime::component::Resource<component::dyna::dynamic_component::Component>,
+        Result<
+            wasmtime::component::Resource<component::dyna::dynamic_component::Component>,
+            component::dyna::dynamic_component::LoadError,
+        >,
     > {
-        println!("Loading component from path: {}", path);
         let self_ = wasmtime::component::Resource::new_borrow(self_.rep());
         let engine = self.table().get(&self_).unwrap();
         let mut store = wasmtime::Store::new(engine, ());
-        let component = wasmtime::component::Component::from_file(engine, path).unwrap();
+        let component = wasmtime::component::Component::new(engine, bytes).map_err(|e| {
+            component::dyna::dynamic_component::LoadError::InvalidBytes(e.to_string())
+        })?;
         let linker = wasmtime::component::Linker::new(engine);
         let instance = linker.instantiate(&mut store, &component).unwrap();
         let component_state = ComponentState { instance, store };
@@ -52,7 +56,7 @@ where
             .table()
             .push(component_state)
             .map_err(|e| anyhow::anyhow!("{e}"))?;
-        Ok(wasmtime::component::Resource::new_own(resource.rep()))
+        Ok(Ok(wasmtime::component::Resource::new_own(resource.rep())))
     }
 
     fn drop(

@@ -8,8 +8,9 @@ pub struct Component;
 
 impl Guest for Component {
     fn hello() {
+        let component_bytes = std::fs::read("example/static_guest.wasm").unwrap();
         let engine = Engine::new();
-        let component = engine.load_component("example/static_guest.wasm");
+        let component = engine.load_component(&component_bytes).unwrap();
         let val = component.call("hello-world", &[]);
         println!("Hello from the guest: {:?}", val);
     }

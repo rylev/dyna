@@ -7,7 +7,7 @@ world dynamic-dispatch {
 interface dynamic-component {
     resource engine {
         constructor();
-        load-component: func(path: string) -> component;
+        load-component: func(bytes: list<u8>) -> result<component, load-error>;
     }
 
     resource component {
@@ -16,5 +16,9 @@ interface dynamic-component {
 
     variant val {
         str(string)
+    }
+
+    variant load-error {
+        invalid-bytes(string)
     }
 }
