@@ -2,20 +2,45 @@ package component:dyna;
 
 world dynamic-dispatch {
     import dynamic-component;
+    import wit;
 }
     
 interface dynamic-component {
+    use wit.{%world};
+
     resource engine {
         constructor();
         load-component: func(bytes: list<u8>) -> result<component, load-error>;
     }
 
     resource component {
+        %world: func() -> result<%world, resolve-error>;
         call: func(name: string, params: list<val>) -> result<list<val>, call-error>;
-        reflect: func() -> list<export-item>;
     }
 
-    record export-item {
+    variant val {
+        %string(string)
+    }
+
+    variant resolve-error {
+        invalid-bytes(string)
+    }
+
+    variant load-error {
+        invalid-bytes(string)
+    }
+
+    variant call-error {
+        no-function
+    }
+}
+
+interface wit {
+    resource %world {
+        exports: func() -> list<%export>;
+    }
+
+    record %export {
         name: string,
         kind: export-kind,
     }
@@ -26,19 +51,19 @@ interface dynamic-component {
     }
 
     record function {
-        params: list<tuple<string, type-item>>,
-        %result: type-item
+        params: list<tuple<string, %type>>,
+        %result: %type
     }
 
     record %interface {
         functions: list<tuple<string, function>>
     }
 
-    resource type-item {
-        kind: func() -> type-item-kind;
+    resource %type {
+        kind: func() -> type-kind;
     }
 
-    variant type-item-kind {
+    variant type-kind {
         %bool, 
         %u8,
         %u16,
@@ -52,9 +77,9 @@ interface dynamic-component {
         %f64,
         %char,
         %string,
-        %list(type-item),
-        %tuple(list<type-item>),
-        %option(type-item),
+        %list(%type),
+        %tuple(list<%type>),
+        %option(%type),
         %result(result-type),
         %enum(enum-type),
         %variant(variant-type),
@@ -62,8 +87,8 @@ interface dynamic-component {
     }
 
     record result-type {
-        ok: option<type-item>,
-        err: option<type-item>
+        ok: option<%type>,
+        err: option<%type>
     }
 
     record record-type {
@@ -76,17 +101,5 @@ interface dynamic-component {
     
     record variant-type {
         name: string
-    }
-
-    variant val {
-        str(string)
-    }
-
-    variant load-error {
-        invalid-bytes(string)
-    }
-
-    variant call-error {
-        no-function
     }
 }

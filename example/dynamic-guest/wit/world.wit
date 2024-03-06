@@ -1,6 +1,6 @@
 package component:guest;
 
 world guest {
-    import component:dyna/dynamic-component;
+    include component:dyna/dynamic-dispatch;
     export hello: func();
 }

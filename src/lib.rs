@@ -1,11 +1,14 @@
+use std::sync::Arc;
+
 use anyhow::Context;
-use component::dyna::dynamic_component::{Host, HostEngine};
+use component::dyna::{dynamic_component, wit};
 
 wasmtime::component::bindgen!({
     with: {
         "component:dyna/dynamic-component/engine": Engine,
         "component:dyna/dynamic-component/component": ComponentState,
-        "component:dyna/dynamic-component/type-item": TypeItem,
+        "component:dyna/wit/world": Resolver,
+        "component:dyna/wit/type": Type,
     }
 });
 
@@ -15,7 +18,8 @@ pub use wasmtime::Engine;
 pub fn add_to_linker<T: DynamicComponentView>(
     linker: &mut wasmtime::component::Linker<T>,
 ) -> anyhow::Result<()> {
-    component::dyna::dynamic_component::add_to_linker(linker, |x| x)
+    dynamic_component::add_to_linker(linker, |x| x)?;
+    wit::add_to_linker(linker, |x| x)
 }
 
 /// A trait for hosting dynamic components.
@@ -23,39 +27,36 @@ pub trait DynamicComponentView {
     fn table(&mut self) -> &mut wasmtime::component::ResourceTable;
 }
 
-impl<T> HostEngine for T
+impl<T> dynamic_component::HostEngine for T
 where
     T: DynamicComponentView,
 {
     fn new(
         &mut self,
-    ) -> wasmtime::Result<wasmtime::component::Resource<component::dyna::dynamic_component::Engine>>
-    {
+    ) -> wasmtime::Result<wasmtime::component::Resource<dynamic_component::Engine>> {
         let mut config = wasmtime::Config::new();
         config.wasm_component_model(true);
         let engine = wasmtime::Engine::new(&config)?;
-        let resource = self
-            .table()
+        self.table()
             .push(engine)
-            .context("failed to allocate engine resource")?;
-        Ok(wasmtime::component::Resource::new_own(resource.rep()))
+            .context("failed to allocate engine resource")
     }
 
     fn load_component(
         &mut self,
-        self_: wasmtime::component::Resource<component::dyna::dynamic_component::Engine>,
+        self_: wasmtime::component::Resource<dynamic_component::Engine>,
         bytes: Vec<u8>,
     ) -> wasmtime::Result<
         Result<
-            wasmtime::component::Resource<component::dyna::dynamic_component::Component>,
-            component::dyna::dynamic_component::LoadError,
+            wasmtime::component::Resource<dynamic_component::Component>,
+            dynamic_component::LoadError,
         >,
     > {
         let engine = self
             .table()
             .get(&self_)
             .map_err(|e| anyhow::anyhow!("{e}"))?;
-        let component_state = match ComponentState::load(engine, &bytes) {
+        let component_state = match ComponentState::load(engine, bytes) {
             Ok(c) => c,
             Err(e) => return Ok(Err(e)),
         };
@@ -64,37 +65,30 @@ where
             .table()
             .push(component_state)
             .map_err(|e| anyhow::anyhow!("{e}"))?;
-        Ok(Ok(wasmtime::component::Resource::new_own(resource.rep())))
+        Ok(Ok(resource))
     }
 
     fn drop(
         &mut self,
-        rep: wasmtime::component::Resource<component::dyna::dynamic_component::Engine>,
+        rep: wasmtime::component::Resource<dynamic_component::Engine>,
     ) -> wasmtime::Result<()> {
-        let _ = self
-            .table()
-            .delete::<wasmtime::Engine>(wasmtime::component::Resource::new_own(rep.rep()))?;
+        let _ = self.table().delete(rep)?;
         Ok(())
     }
 }
 
-impl<T> Host for T where T: DynamicComponentView {}
+impl<T> dynamic_component::Host for T where T: DynamicComponentView {}
 
-impl<T> component::dyna::dynamic_component::HostComponent for T
+impl<T> dynamic_component::HostComponent for T
 where
     T: DynamicComponentView,
 {
     fn call(
         &mut self,
-        self_: wasmtime::component::Resource<component::dyna::dynamic_component::Component>,
+        self_: wasmtime::component::Resource<dynamic_component::Component>,
         name: String,
-        args: Vec<component::dyna::dynamic_component::Val>,
-    ) -> wasmtime::Result<
-        Result<
-            Vec<component::dyna::dynamic_component::Val>,
-            component::dyna::dynamic_component::CallError,
-        >,
-    > {
+        args: Vec<dynamic_component::Val>,
+    ) -> wasmtime::Result<Result<Vec<dynamic_component::Val>, dynamic_component::CallError>> {
         let state = self
             .table()
             .get_mut(&self_)
@@ -102,34 +96,74 @@ where
         Ok(state.call_method(&name, args))
     }
 
-    fn reflect(
+    fn world(
         &mut self,
-        self_: wasmtime::component::Resource<component::dyna::dynamic_component::Component>,
-    ) -> wasmtime::Result<Vec<component::dyna::dynamic_component::ExportItem>> {
+        self_: wasmtime::component::Resource<dynamic_component::Component>,
+    ) -> wasmtime::Result<
+        Result<wasmtime::component::Resource<wit::World>, dynamic_component::ResolveError>,
+    > {
         let state = self
             .table()
             .get(&self_)
             .map_err(|e| anyhow::anyhow!("{e}"))?;
-        Ok(state.resolver.clone().reflect(self.table()))
+
+        let Ok(wit_component::DecodedWasm::Component(resolve, world_id)) =
+            wit_component::decode(&state.bytes)
+        else {
+            return Ok(Err(dynamic_component::ResolveError::InvalidBytes(
+                "found wit package instead of the expect WebAssembly component".into(),
+            )));
+        };
+        let resolve = Resolver {
+            resolve: Arc::new(resolve),
+            world_id,
+        };
+        let world = self
+            .table()
+            .push(resolve)
+            .context("failed to allocate resolver resource")?;
+        Ok(Ok(world))
     }
 
     fn drop(
         &mut self,
-        self_: wasmtime::component::Resource<component::dyna::dynamic_component::Component>,
+        self_: wasmtime::component::Resource<dynamic_component::Component>,
     ) -> wasmtime::Result<()> {
         self.table().delete(self_).unwrap();
         Ok(())
     }
 }
 
-impl<T> component::dyna::dynamic_component::HostTypeItem for T
+impl<T> wit::Host for T where T: DynamicComponentView {}
+impl<T> wit::HostWorld for T
+where
+    T: DynamicComponentView,
+{
+    fn exports(
+        &mut self,
+        self_: wasmtime::component::Resource<wit::World>,
+    ) -> wasmtime::Result<Vec<wit::Export>> {
+        let resolve = self
+            .table()
+            .get(&self_)
+            .context("failed to get resolver resource")?;
+        Ok(resolve.clone().exports(self.table()))
+    }
+
+    fn drop(&mut self, rep: wasmtime::component::Resource<wit::World>) -> wasmtime::Result<()> {
+        let _ = self.table().delete(rep)?;
+        Ok(())
+    }
+}
+
+impl<T> wit::HostType for T
 where
     T: DynamicComponentView,
 {
     fn kind(
         &mut self,
-        self_: wasmtime::component::Resource<TypeItem>,
-    ) -> wasmtime::Result<component::dyna::dynamic_component::TypeItemKind> {
+        self_: wasmtime::component::Resource<wit::Type>,
+    ) -> wasmtime::Result<wit::TypeKind> {
         let typ = self
             .table()
             .get(&self_)
@@ -138,10 +172,7 @@ where
         Ok(typ.convert_type(self.table()))
     }
 
-    fn drop(
-        &mut self,
-        rep: wasmtime::component::Resource<component::dyna::dynamic_component::TypeItem>,
-    ) -> wasmtime::Result<()> {
+    fn drop(&mut self, rep: wasmtime::component::Resource<wit::Type>) -> wasmtime::Result<()> {
         self.table().delete(rep)?;
         Ok(())
     }
@@ -150,53 +181,39 @@ where
 pub struct ComponentState {
     store: wasmtime::Store<()>,
     instance: wasmtime::component::Instance,
-    resolver: Resolver,
+    bytes: Vec<u8>,
 }
 
 impl ComponentState {
     fn load(
         engine: &wasmtime::Engine,
-        bytes: &[u8],
-    ) -> Result<Self, component::dyna::dynamic_component::LoadError> {
+        bytes: Vec<u8>,
+    ) -> Result<Self, dynamic_component::LoadError> {
         let mut store = wasmtime::Store::new(engine, ());
-        let component = wasmtime::component::Component::new(engine, bytes).map_err(|e| {
-            component::dyna::dynamic_component::LoadError::InvalidBytes(e.to_string())
-        })?;
+        let component = wasmtime::component::Component::new(engine, &bytes)
+            .map_err(|e| dynamic_component::LoadError::InvalidBytes(e.to_string()))?;
         let linker = wasmtime::component::Linker::new(engine);
         let instance = linker.instantiate(&mut store, &component).unwrap();
-
-        let Ok(wit_component::DecodedWasm::Component(resolve, world_id)) =
-            wit_component::decode(bytes)
-        else {
-            return Err(component::dyna::dynamic_component::LoadError::InvalidBytes(
-                "found wit package instead of the expect WebAssembly component".into(),
-            ));
-        };
         Ok(ComponentState {
             instance,
             store,
-            resolver: Resolver { resolve, world_id },
+            bytes,
         })
     }
 
     fn call_method(
         &mut self,
         name: &str,
-        args: Vec<component::dyna::dynamic_component::Val>,
-    ) -> Result<
-        Vec<component::dyna::dynamic_component::Val>,
-        component::dyna::dynamic_component::CallError,
-    > {
+        args: Vec<dynamic_component::Val>,
+    ) -> Result<Vec<dynamic_component::Val>, dynamic_component::CallError> {
         let func = self
             .instance
             .get_func(&mut self.store, &name)
-            .ok_or(component::dyna::dynamic_component::CallError::NoFunction)?;
+            .ok_or(dynamic_component::CallError::NoFunction)?;
         let params = args
             .into_iter()
             .map(|a| match a {
-                component::dyna::dynamic_component::Val::Str(s) => {
-                    wasmtime::component::Val::String(s.into())
-                }
+                dynamic_component::Val::String(s) => wasmtime::component::Val::String(s.into()),
             })
             .collect::<Vec<_>>();
         let mut result = [wasmtime::component::Val::String(
@@ -207,9 +224,7 @@ impl ComponentState {
         Ok(result
             .into_iter()
             .map(|v| match v {
-                wasmtime::component::Val::String(s) => {
-                    component::dyna::dynamic_component::Val::Str(s.into())
-                }
+                wasmtime::component::Val::String(s) => dynamic_component::Val::String(s.into()),
                 _ => todo!(""),
             })
             .collect())
@@ -217,16 +232,13 @@ impl ComponentState {
 }
 
 #[derive(Clone)]
-struct Resolver {
-    resolve: wit_parser::Resolve,
+pub struct Resolver {
+    resolve: Arc<wit_parser::Resolve>,
     world_id: wit_parser::WorldId,
 }
 
 impl Resolver {
-    fn reflect(
-        &self,
-        resource_table: &mut wasmtime::component::ResourceTable,
-    ) -> Vec<component::dyna::dynamic_component::ExportItem> {
+    fn exports(&self, resource_table: &mut wasmtime::component::ResourceTable) -> Vec<wit::Export> {
         let world = self.world();
         world
             .exports
@@ -241,32 +253,30 @@ impl Resolver {
                             .as_ref()
                             .expect("non-inlined interface still did not have a name"),
                     };
-                    component::dyna::dynamic_component::ExportItem {
+                    wit::Export {
                         name: name.clone(),
-                        kind: component::dyna::dynamic_component::ExportKind::Interface(
-                            component::dyna::dynamic_component::Interface {
-                                functions: interface
-                                    .functions
-                                    .iter()
-                                    .map(|(name, func)| {
-                                        (
-                                            name.clone(),
-                                            convert_function(func, &self.resolve, resource_table),
-                                        )
-                                    })
-                                    .collect(),
-                            },
-                        ),
+                        kind: wit::ExportKind::Interface(wit::Interface {
+                            functions: interface
+                                .functions
+                                .iter()
+                                .map(|(name, func)| {
+                                    (
+                                        name.clone(),
+                                        convert_function(func, &self.resolve, resource_table),
+                                    )
+                                })
+                                .collect(),
+                        }),
                     }
                 }
-                wit_parser::WorldItem::Function(f) => {
-                    component::dyna::dynamic_component::ExportItem {
-                        name: key.clone().unwrap_name(),
-                        kind: component::dyna::dynamic_component::ExportKind::Function(
-                            convert_function(f, &self.resolve, resource_table),
-                        ),
-                    }
-                }
+                wit_parser::WorldItem::Function(f) => wit::Export {
+                    name: key.clone().unwrap_name(),
+                    kind: wit::ExportKind::Function(convert_function(
+                        f,
+                        &self.resolve,
+                        resource_table,
+                    )),
+                },
                 wit_parser::WorldItem::Type(_) => todo!(),
             })
             .collect()
@@ -284,8 +294,8 @@ fn convert_function(
     function: &wit_parser::Function,
     resolve: &wit_parser::Resolve,
     resource_table: &mut wasmtime::component::ResourceTable,
-) -> component::dyna::dynamic_component::Function {
-    component::dyna::dynamic_component::Function {
+) -> wit::Function {
+    wit::Function {
         params: function
             .params
             .iter()
@@ -304,45 +314,43 @@ fn convert_function(
 }
 
 #[derive(Clone)]
-pub struct TypeItem {
+pub struct Type {
     resolve: wit_parser::Resolve,
     typ: wit_parser::Type,
 }
 
-impl TypeItem {
+impl Type {
     fn convert_type(
         &self,
         resource_table: &mut wasmtime::component::ResourceTable,
-    ) -> component::dyna::dynamic_component::TypeItemKind {
-        use component::dyna::dynamic_component::{
-            EnumType, RecordType, ResultType, TypeItemKind, VariantType,
-        };
+    ) -> wit::TypeKind {
+        use component::dyna::wit::{EnumType, RecordType, ResultType, TypeKind, VariantType};
         use wit_parser::Type::*;
         match &self.typ {
-            String => TypeItemKind::String,
-            Bool => TypeItemKind::Bool,
-            U8 => TypeItemKind::U8,
-            U16 => TypeItemKind::U16,
-            U32 => TypeItemKind::U32,
-            U64 => TypeItemKind::U64,
-            S8 => TypeItemKind::S8,
-            S16 => TypeItemKind::S16,
-            S32 => TypeItemKind::S32,
-            S64 => TypeItemKind::S64,
-            Float32 => TypeItemKind::F32,
-            Float64 => TypeItemKind::F64,
-            Char => TypeItemKind::Char,
+            String => TypeKind::String,
+            Bool => TypeKind::Bool,
+            U8 => TypeKind::U8,
+            U16 => TypeKind::U16,
+            U32 => TypeKind::U32,
+            U64 => TypeKind::U64,
+            S8 => TypeKind::S8,
+            S16 => TypeKind::S16,
+            S32 => TypeKind::S32,
+            S64 => TypeKind::S64,
+            Float32 => TypeKind::F32,
+            Float64 => TypeKind::F64,
+            Char => TypeKind::Char,
             Id(i) => {
                 let typ = &self.resolve.types.get(*i).unwrap();
                 match &typ.kind {
-                    wit_parser::TypeDefKind::Tuple(t) => TypeItemKind::Tuple(
+                    wit_parser::TypeDefKind::Tuple(t) => TypeKind::Tuple(
                         t.types
                             .iter()
                             .map(|t| push_type(t, &self.resolve, resource_table).unwrap())
                             .collect(),
                     ),
                     wit_parser::TypeDefKind::Option(o) => {
-                        TypeItemKind::Option(push_type(o, &self.resolve, resource_table).unwrap())
+                        TypeKind::Option(push_type(o, &self.resolve, resource_table).unwrap())
                     }
                     wit_parser::TypeDefKind::Result(r) => {
                         let ok =
@@ -355,18 +363,18 @@ impl TypeItem {
                                 .map(|t| push_type(t, &self.resolve, resource_table))
                                 .transpose()
                                 .unwrap();
-                        TypeItemKind::Result(ResultType { ok, err })
+                        TypeKind::Result(ResultType { ok, err })
                     }
                     wit_parser::TypeDefKind::List(l) => {
-                        TypeItemKind::List(push_type(l, &self.resolve, resource_table).unwrap())
+                        TypeKind::List(push_type(l, &self.resolve, resource_table).unwrap())
                     }
-                    wit_parser::TypeDefKind::Enum(_) => TypeItemKind::Enum(EnumType {
+                    wit_parser::TypeDefKind::Enum(_) => TypeKind::Enum(EnumType {
                         name: typ.name.clone().unwrap(),
                     }),
-                    wit_parser::TypeDefKind::Variant(_) => TypeItemKind::Variant(VariantType {
+                    wit_parser::TypeDefKind::Variant(_) => TypeKind::Variant(VariantType {
                         name: typ.name.clone().unwrap(),
                     }),
-                    wit_parser::TypeDefKind::Record(_) => TypeItemKind::Record(RecordType {
+                    wit_parser::TypeDefKind::Record(_) => TypeKind::Record(RecordType {
                         name: typ.name.clone().unwrap(),
                     }),
                     wit_parser::TypeDefKind::Resource => todo!("handle resources"),
@@ -391,11 +399,8 @@ fn push_type(
     typ: &wit_parser::Type,
     resolve: &wit_parser::Resolve,
     resource_table: &mut wasmtime::component::ResourceTable,
-) -> Result<
-    wasmtime::component::Resource<component::dyna::dynamic_component::TypeItem>,
-    wasmtime::component::ResourceTableError,
-> {
-    let typ = TypeItem {
+) -> Result<wasmtime::component::Resource<wit::Type>, wasmtime::component::ResourceTableError> {
+    let typ = Type {
         resolve: resolve.clone(),
         typ: typ.clone(),
     };

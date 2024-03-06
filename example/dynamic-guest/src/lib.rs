@@ -11,14 +11,14 @@ impl Guest for Component {
         let component_bytes = std::fs::read("example/static_guest.wasm").unwrap();
         let engine = Engine::new();
         let component = engine.load_component(&component_bytes).unwrap();
-        let exports = component.reflect();
+        let world = component.world().unwrap();
         println!("Exports:");
-        for export in &exports {
+        for export in &world.exports() {
             match &export.kind {
-                bindings::component::dyna::dynamic_component::ExportKind::Function(f) => {
+                bindings::component::dyna::wit::ExportKind::Function(f) => {
                     print_function(&export.name, f, 1)
                 }
-                bindings::component::dyna::dynamic_component::ExportKind::Interface(i) => {
+                bindings::component::dyna::wit::ExportKind::Interface(i) => {
                     println!("  interface {} {{", export.name);
                     for (name, func) in i.functions.iter() {
                         print_function(name, func, 2)
@@ -32,11 +32,7 @@ impl Guest for Component {
     }
 }
 
-fn print_function(
-    name: &str,
-    func: &bindings::component::dyna::dynamic_component::Function,
-    offset: usize,
-) {
+fn print_function(name: &str, func: &bindings::component::dyna::wit::Function, offset: usize) {
     let params = func
         .params
         .iter()

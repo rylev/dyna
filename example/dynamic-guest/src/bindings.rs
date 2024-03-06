@@ -33,11 +33,591 @@ pub mod component {
   pub mod dyna {
     
     #[allow(clippy::all)]
+    pub mod wit {
+      #[used]
+      #[doc(hidden)]
+      #[cfg(target_arch = "wasm32")]
+      static __FORCE_SECTION_REF: fn() = super::super::super::__link_section;
+      
+      #[derive(Debug)]
+      #[repr(transparent)]
+      pub struct World{
+        handle: wit_bindgen::rt::Resource<World>,
+      }
+      
+      impl World{
+        #[doc(hidden)]
+        pub unsafe fn from_handle(handle: u32) -> Self {
+          Self {
+            handle: wit_bindgen::rt::Resource::from_handle(handle),
+          }
+        }
+        
+        #[doc(hidden)]
+        pub fn into_handle(self) -> u32 {
+          wit_bindgen::rt::Resource::into_handle(self.handle)
+        }
+        
+        #[doc(hidden)]
+        pub fn handle(&self) -> u32 {
+          wit_bindgen::rt::Resource::handle(&self.handle)
+        }
+      }
+      
+      
+      unsafe impl wit_bindgen::rt::WasmResource for World{
+        #[inline]
+        unsafe fn drop(_handle: u32) {
+          #[cfg(not(target_arch = "wasm32"))]
+          unreachable!();
+          
+          #[cfg(target_arch = "wasm32")]
+          {
+            #[link(wasm_import_module = "component:dyna/wit")]
+            extern "C" {
+              #[link_name = "[resource-drop]world"]
+              fn drop(_: u32);
+            }
+            
+            drop(_handle);
+          }
+        }
+      }
+      
+      
+      #[derive(Debug)]
+      #[repr(transparent)]
+      pub struct Type{
+        handle: wit_bindgen::rt::Resource<Type>,
+      }
+      
+      impl Type{
+        #[doc(hidden)]
+        pub unsafe fn from_handle(handle: u32) -> Self {
+          Self {
+            handle: wit_bindgen::rt::Resource::from_handle(handle),
+          }
+        }
+        
+        #[doc(hidden)]
+        pub fn into_handle(self) -> u32 {
+          wit_bindgen::rt::Resource::into_handle(self.handle)
+        }
+        
+        #[doc(hidden)]
+        pub fn handle(&self) -> u32 {
+          wit_bindgen::rt::Resource::handle(&self.handle)
+        }
+      }
+      
+      
+      unsafe impl wit_bindgen::rt::WasmResource for Type{
+        #[inline]
+        unsafe fn drop(_handle: u32) {
+          #[cfg(not(target_arch = "wasm32"))]
+          unreachable!();
+          
+          #[cfg(target_arch = "wasm32")]
+          {
+            #[link(wasm_import_module = "component:dyna/wit")]
+            extern "C" {
+              #[link_name = "[resource-drop]type"]
+              fn drop(_: u32);
+            }
+            
+            drop(_handle);
+          }
+        }
+      }
+      
+      pub struct Function {
+        pub params: wit_bindgen::rt::vec::Vec::<(wit_bindgen::rt::string::String,Type,)>,
+        pub result: Type,
+      }
+      impl ::core::fmt::Debug for Function {
+        fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
+          f.debug_struct("Function").field("params", &self.params).field("result", &self.result).finish()
+        }
+      }
+      pub struct Interface {
+        pub functions: wit_bindgen::rt::vec::Vec::<(wit_bindgen::rt::string::String,Function,)>,
+      }
+      impl ::core::fmt::Debug for Interface {
+        fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
+          f.debug_struct("Interface").field("functions", &self.functions).finish()
+        }
+      }
+      pub enum ExportKind{
+        Function(Function),
+        Interface(Interface),
+      }
+      impl ::core::fmt::Debug for ExportKind {
+        fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
+          match self {
+            ExportKind::Function(e) => {
+              f.debug_tuple("ExportKind::Function").field(e).finish()
+            }
+            ExportKind::Interface(e) => {
+              f.debug_tuple("ExportKind::Interface").field(e).finish()
+            }
+          }
+        }
+      }
+      pub struct Export {
+        pub name: wit_bindgen::rt::string::String,
+        pub kind: ExportKind,
+      }
+      impl ::core::fmt::Debug for Export {
+        fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
+          f.debug_struct("Export").field("name", &self.name).field("kind", &self.kind).finish()
+        }
+      }
+      pub struct ResultType {
+        pub ok: Option<Type>,
+        pub err: Option<Type>,
+      }
+      impl ::core::fmt::Debug for ResultType {
+        fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
+          f.debug_struct("ResultType").field("ok", &self.ok).field("err", &self.err).finish()
+        }
+      }
+      #[derive(Clone)]
+      pub struct RecordType {
+        pub name: wit_bindgen::rt::string::String,
+      }
+      impl ::core::fmt::Debug for RecordType {
+        fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
+          f.debug_struct("RecordType").field("name", &self.name).finish()
+        }
+      }
+      #[derive(Clone)]
+      pub struct EnumType {
+        pub name: wit_bindgen::rt::string::String,
+      }
+      impl ::core::fmt::Debug for EnumType {
+        fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
+          f.debug_struct("EnumType").field("name", &self.name).finish()
+        }
+      }
+      #[derive(Clone)]
+      pub struct VariantType {
+        pub name: wit_bindgen::rt::string::String,
+      }
+      impl ::core::fmt::Debug for VariantType {
+        fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
+          f.debug_struct("VariantType").field("name", &self.name).finish()
+        }
+      }
+      pub enum TypeKind{
+        Bool,
+        U8,
+        U16,
+        U32,
+        U64,
+        S8,
+        S16,
+        S32,
+        S64,
+        F32,
+        F64,
+        Char,
+        String,
+        List(Type),
+        Tuple(wit_bindgen::rt::vec::Vec::<Type>),
+        Option(Type),
+        Result(ResultType),
+        Enum(EnumType),
+        Variant(VariantType),
+        Record(RecordType),
+      }
+      impl ::core::fmt::Debug for TypeKind {
+        fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
+          match self {
+            TypeKind::Bool => {
+              f.debug_tuple("TypeKind::Bool").finish()
+            }
+            TypeKind::U8 => {
+              f.debug_tuple("TypeKind::U8").finish()
+            }
+            TypeKind::U16 => {
+              f.debug_tuple("TypeKind::U16").finish()
+            }
+            TypeKind::U32 => {
+              f.debug_tuple("TypeKind::U32").finish()
+            }
+            TypeKind::U64 => {
+              f.debug_tuple("TypeKind::U64").finish()
+            }
+            TypeKind::S8 => {
+              f.debug_tuple("TypeKind::S8").finish()
+            }
+            TypeKind::S16 => {
+              f.debug_tuple("TypeKind::S16").finish()
+            }
+            TypeKind::S32 => {
+              f.debug_tuple("TypeKind::S32").finish()
+            }
+            TypeKind::S64 => {
+              f.debug_tuple("TypeKind::S64").finish()
+            }
+            TypeKind::F32 => {
+              f.debug_tuple("TypeKind::F32").finish()
+            }
+            TypeKind::F64 => {
+              f.debug_tuple("TypeKind::F64").finish()
+            }
+            TypeKind::Char => {
+              f.debug_tuple("TypeKind::Char").finish()
+            }
+            TypeKind::String => {
+              f.debug_tuple("TypeKind::String").finish()
+            }
+            TypeKind::List(e) => {
+              f.debug_tuple("TypeKind::List").field(e).finish()
+            }
+            TypeKind::Tuple(e) => {
+              f.debug_tuple("TypeKind::Tuple").field(e).finish()
+            }
+            TypeKind::Option(e) => {
+              f.debug_tuple("TypeKind::Option").field(e).finish()
+            }
+            TypeKind::Result(e) => {
+              f.debug_tuple("TypeKind::Result").field(e).finish()
+            }
+            TypeKind::Enum(e) => {
+              f.debug_tuple("TypeKind::Enum").field(e).finish()
+            }
+            TypeKind::Variant(e) => {
+              f.debug_tuple("TypeKind::Variant").field(e).finish()
+            }
+            TypeKind::Record(e) => {
+              f.debug_tuple("TypeKind::Record").field(e).finish()
+            }
+          }
+        }
+      }
+      impl World {
+        #[allow(unused_unsafe, clippy::all)]
+        pub fn exports(&self,) -> wit_bindgen::rt::vec::Vec::<Export>{
+          
+          #[allow(unused_imports)]
+          use wit_bindgen::rt::{alloc, vec::Vec, string::String};
+          unsafe {
+            
+            #[repr(align(4))]
+            struct RetArea([u8; 8]);
+            let mut ret_area = ::core::mem::MaybeUninit::<RetArea>::uninit();
+            let ptr0 = ret_area.as_mut_ptr() as i32;
+            #[cfg(target_arch = "wasm32")]
+            #[link(wasm_import_module = "component:dyna/wit")]
+            extern "C" {
+              #[link_name = "[method]world.exports"]
+              fn wit_import(_: i32, _: i32, );
+            }
+            
+            #[cfg(not(target_arch = "wasm32"))]
+            fn wit_import(_: i32, _: i32, ){ unreachable!() }
+            wit_import((self).handle() as i32, ptr0);
+            let l1 = *((ptr0 + 0) as *const i32);
+            let l2 = *((ptr0 + 4) as *const i32);
+            let base30 = l1;
+            let len30 = l2;
+            let mut result30 = Vec::with_capacity(len30 as usize);
+            for i in 0..len30 {
+              let base = base30 + i * 24;
+              let e30 = {
+                let l3 = *((base + 0) as *const i32);
+                let l4 = *((base + 4) as *const i32);
+                let len5 = l4 as usize;
+                let bytes5 = Vec::from_raw_parts(l3 as *mut _, len5, len5);
+                let l6 = i32::from(*((base + 8) as *const u8));
+                let v29 = match l6 {
+                  0 => {
+                    let e29 = {
+                      let l7 = *((base + 12) as *const i32);
+                      let l8 = *((base + 16) as *const i32);
+                      let base13 = l7;
+                      let len13 = l8;
+                      let mut result13 = Vec::with_capacity(len13 as usize);
+                      for i in 0..len13 {
+                        let base = base13 + i * 12;
+                        let e13 = {
+                          let l9 = *((base + 0) as *const i32);
+                          let l10 = *((base + 4) as *const i32);
+                          let len11 = l10 as usize;
+                          let bytes11 = Vec::from_raw_parts(l9 as *mut _, len11, len11);
+                          let l12 = *((base + 8) as *const i32);
+                          
+                          (wit_bindgen::rt::string_lift(bytes11), Type::from_handle(l12 as u32))
+                        };
+                        result13.push(e13);
+                      }
+                      wit_bindgen::rt::dealloc(base13, (len13 as usize) * 12, 4);
+                      let l14 = *((base + 20) as *const i32);
+                      
+                      Function{
+                        params: result13,
+                        result: Type::from_handle(l14 as u32),
+                      }
+                    };
+                    ExportKind::Function(e29)
+                  }
+                  n => {
+                    debug_assert_eq!(n, 1, "invalid enum discriminant");
+                    let e29 = {
+                      let l15 = *((base + 12) as *const i32);
+                      let l16 = *((base + 16) as *const i32);
+                      let base28 = l15;
+                      let len28 = l16;
+                      let mut result28 = Vec::with_capacity(len28 as usize);
+                      for i in 0..len28 {
+                        let base = base28 + i * 20;
+                        let e28 = {
+                          let l17 = *((base + 0) as *const i32);
+                          let l18 = *((base + 4) as *const i32);
+                          let len19 = l18 as usize;
+                          let bytes19 = Vec::from_raw_parts(l17 as *mut _, len19, len19);
+                          let l20 = *((base + 8) as *const i32);
+                          let l21 = *((base + 12) as *const i32);
+                          let base26 = l20;
+                          let len26 = l21;
+                          let mut result26 = Vec::with_capacity(len26 as usize);
+                          for i in 0..len26 {
+                            let base = base26 + i * 12;
+                            let e26 = {
+                              let l22 = *((base + 0) as *const i32);
+                              let l23 = *((base + 4) as *const i32);
+                              let len24 = l23 as usize;
+                              let bytes24 = Vec::from_raw_parts(l22 as *mut _, len24, len24);
+                              let l25 = *((base + 8) as *const i32);
+                              
+                              (wit_bindgen::rt::string_lift(bytes24), Type::from_handle(l25 as u32))
+                            };
+                            result26.push(e26);
+                          }
+                          wit_bindgen::rt::dealloc(base26, (len26 as usize) * 12, 4);
+                          let l27 = *((base + 16) as *const i32);
+                          
+                          (wit_bindgen::rt::string_lift(bytes19), Function{
+                            params: result26,
+                            result: Type::from_handle(l27 as u32),
+                          })
+                        };
+                        result28.push(e28);
+                      }
+                      wit_bindgen::rt::dealloc(base28, (len28 as usize) * 20, 4);
+                      
+                      Interface{
+                        functions: result28,
+                      }
+                    };
+                    ExportKind::Interface(e29)
+                  }
+                };
+                
+                Export{
+                  name: wit_bindgen::rt::string_lift(bytes5),
+                  kind: v29,
+                }
+              };
+              result30.push(e30);
+            }
+            wit_bindgen::rt::dealloc(base30, (len30 as usize) * 24, 4);
+            result30
+          }
+        }
+      }
+      impl Type {
+        #[allow(unused_unsafe, clippy::all)]
+        pub fn kind(&self,) -> TypeKind{
+          
+          #[allow(unused_imports)]
+          use wit_bindgen::rt::{alloc, vec::Vec, string::String};
+          unsafe {
+            
+            #[repr(align(4))]
+            struct RetArea([u8; 20]);
+            let mut ret_area = ::core::mem::MaybeUninit::<RetArea>::uninit();
+            let ptr0 = ret_area.as_mut_ptr() as i32;
+            #[cfg(target_arch = "wasm32")]
+            #[link(wasm_import_module = "component:dyna/wit")]
+            extern "C" {
+              #[link_name = "[method]type.kind"]
+              fn wit_import(_: i32, _: i32, );
+            }
+            
+            #[cfg(not(target_arch = "wasm32"))]
+            fn wit_import(_: i32, _: i32, ){ unreachable!() }
+            wit_import((self).handle() as i32, ptr0);
+            let l1 = i32::from(*((ptr0 + 0) as *const u8));
+            let v21 = match l1 {
+              0 => {
+                TypeKind::Bool
+              }
+              1 => {
+                TypeKind::U8
+              }
+              2 => {
+                TypeKind::U16
+              }
+              3 => {
+                TypeKind::U32
+              }
+              4 => {
+                TypeKind::U64
+              }
+              5 => {
+                TypeKind::S8
+              }
+              6 => {
+                TypeKind::S16
+              }
+              7 => {
+                TypeKind::S32
+              }
+              8 => {
+                TypeKind::S64
+              }
+              9 => {
+                TypeKind::F32
+              }
+              10 => {
+                TypeKind::F64
+              }
+              11 => {
+                TypeKind::Char
+              }
+              12 => {
+                TypeKind::String
+              }
+              13 => {
+                let e21 = {
+                  let l2 = *((ptr0 + 4) as *const i32);
+                  
+                  Type::from_handle(l2 as u32)
+                };
+                TypeKind::List(e21)
+              }
+              14 => {
+                let e21 = {
+                  let l3 = *((ptr0 + 4) as *const i32);
+                  let l4 = *((ptr0 + 8) as *const i32);
+                  let base6 = l3;
+                  let len6 = l4;
+                  let mut result6 = Vec::with_capacity(len6 as usize);
+                  for i in 0..len6 {
+                    let base = base6 + i * 4;
+                    let e6 = {
+                      let l5 = *((base + 0) as *const i32);
+                      
+                      Type::from_handle(l5 as u32)
+                    };
+                    result6.push(e6);
+                  }
+                  wit_bindgen::rt::dealloc(base6, (len6 as usize) * 4, 4);
+                  
+                  result6
+                };
+                TypeKind::Tuple(e21)
+              }
+              15 => {
+                let e21 = {
+                  let l7 = *((ptr0 + 4) as *const i32);
+                  
+                  Type::from_handle(l7 as u32)
+                };
+                TypeKind::Option(e21)
+              }
+              16 => {
+                let e21 = {
+                  let l8 = i32::from(*((ptr0 + 4) as *const u8));
+                  let l10 = i32::from(*((ptr0 + 12) as *const u8));
+                  
+                  ResultType{
+                    ok: match l8 {
+                      0 => None,
+                      1 => {
+                        let e = {
+                          let l9 = *((ptr0 + 8) as *const i32);
+                          
+                          Type::from_handle(l9 as u32)
+                        };
+                        Some(e)
+                      }
+                      _ => wit_bindgen::rt::invalid_enum_discriminant(),
+                    },
+                    err: match l10 {
+                      0 => None,
+                      1 => {
+                        let e = {
+                          let l11 = *((ptr0 + 16) as *const i32);
+                          
+                          Type::from_handle(l11 as u32)
+                        };
+                        Some(e)
+                      }
+                      _ => wit_bindgen::rt::invalid_enum_discriminant(),
+                    },
+                  }
+                };
+                TypeKind::Result(e21)
+              }
+              17 => {
+                let e21 = {
+                  let l12 = *((ptr0 + 4) as *const i32);
+                  let l13 = *((ptr0 + 8) as *const i32);
+                  let len14 = l13 as usize;
+                  let bytes14 = Vec::from_raw_parts(l12 as *mut _, len14, len14);
+                  
+                  EnumType{
+                    name: wit_bindgen::rt::string_lift(bytes14),
+                  }
+                };
+                TypeKind::Enum(e21)
+              }
+              18 => {
+                let e21 = {
+                  let l15 = *((ptr0 + 4) as *const i32);
+                  let l16 = *((ptr0 + 8) as *const i32);
+                  let len17 = l16 as usize;
+                  let bytes17 = Vec::from_raw_parts(l15 as *mut _, len17, len17);
+                  
+                  VariantType{
+                    name: wit_bindgen::rt::string_lift(bytes17),
+                  }
+                };
+                TypeKind::Variant(e21)
+              }
+              n => {
+                debug_assert_eq!(n, 19, "invalid enum discriminant");
+                let e21 = {
+                  let l18 = *((ptr0 + 4) as *const i32);
+                  let l19 = *((ptr0 + 8) as *const i32);
+                  let len20 = l19 as usize;
+                  let bytes20 = Vec::from_raw_parts(l18 as *mut _, len20, len20);
+                  
+                  RecordType{
+                    name: wit_bindgen::rt::string_lift(bytes20),
+                  }
+                };
+                TypeKind::Record(e21)
+              }
+            };
+            v21
+          }
+        }
+      }
+      
+    }
+    
+    
+    #[allow(clippy::all)]
     pub mod dynamic_component {
       #[used]
       #[doc(hidden)]
       #[cfg(target_arch = "wasm32")]
       static __FORCE_SECTION_REF: fn() = super::super::super::__link_section;
+      pub type World = super::super::super::component::dyna::wit::World;
       
       #[derive(Debug)]
       #[repr(transparent)]
@@ -130,231 +710,39 @@ pub mod component {
         }
       }
       
-      
-      #[derive(Debug)]
-      #[repr(transparent)]
-      pub struct TypeItem{
-        handle: wit_bindgen::rt::Resource<TypeItem>,
-      }
-      
-      impl TypeItem{
-        #[doc(hidden)]
-        pub unsafe fn from_handle(handle: u32) -> Self {
-          Self {
-            handle: wit_bindgen::rt::Resource::from_handle(handle),
-          }
-        }
-        
-        #[doc(hidden)]
-        pub fn into_handle(self) -> u32 {
-          wit_bindgen::rt::Resource::into_handle(self.handle)
-        }
-        
-        #[doc(hidden)]
-        pub fn handle(&self) -> u32 {
-          wit_bindgen::rt::Resource::handle(&self.handle)
-        }
-      }
-      
-      
-      unsafe impl wit_bindgen::rt::WasmResource for TypeItem{
-        #[inline]
-        unsafe fn drop(_handle: u32) {
-          #[cfg(not(target_arch = "wasm32"))]
-          unreachable!();
-          
-          #[cfg(target_arch = "wasm32")]
-          {
-            #[link(wasm_import_module = "component:dyna/dynamic-component")]
-            extern "C" {
-              #[link_name = "[resource-drop]type-item"]
-              fn drop(_: u32);
-            }
-            
-            drop(_handle);
-          }
-        }
-      }
-      
-      pub struct Function {
-        pub params: wit_bindgen::rt::vec::Vec::<(wit_bindgen::rt::string::String,TypeItem,)>,
-        pub result: TypeItem,
-      }
-      impl ::core::fmt::Debug for Function {
-        fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
-          f.debug_struct("Function").field("params", &self.params).field("result", &self.result).finish()
-        }
-      }
-      pub struct Interface {
-        pub functions: wit_bindgen::rt::vec::Vec::<(wit_bindgen::rt::string::String,Function,)>,
-      }
-      impl ::core::fmt::Debug for Interface {
-        fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
-          f.debug_struct("Interface").field("functions", &self.functions).finish()
-        }
-      }
-      pub enum ExportKind{
-        Function(Function),
-        Interface(Interface),
-      }
-      impl ::core::fmt::Debug for ExportKind {
-        fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
-          match self {
-            ExportKind::Function(e) => {
-              f.debug_tuple("ExportKind::Function").field(e).finish()
-            }
-            ExportKind::Interface(e) => {
-              f.debug_tuple("ExportKind::Interface").field(e).finish()
-            }
-          }
-        }
-      }
-      pub struct ExportItem {
-        pub name: wit_bindgen::rt::string::String,
-        pub kind: ExportKind,
-      }
-      impl ::core::fmt::Debug for ExportItem {
-        fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
-          f.debug_struct("ExportItem").field("name", &self.name).field("kind", &self.kind).finish()
-        }
-      }
-      pub struct ResultType {
-        pub ok: Option<TypeItem>,
-        pub err: Option<TypeItem>,
-      }
-      impl ::core::fmt::Debug for ResultType {
-        fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
-          f.debug_struct("ResultType").field("ok", &self.ok).field("err", &self.err).finish()
-        }
-      }
-      #[derive(Clone)]
-      pub struct RecordType {
-        pub name: wit_bindgen::rt::string::String,
-      }
-      impl ::core::fmt::Debug for RecordType {
-        fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
-          f.debug_struct("RecordType").field("name", &self.name).finish()
-        }
-      }
-      #[derive(Clone)]
-      pub struct EnumType {
-        pub name: wit_bindgen::rt::string::String,
-      }
-      impl ::core::fmt::Debug for EnumType {
-        fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
-          f.debug_struct("EnumType").field("name", &self.name).finish()
-        }
-      }
-      #[derive(Clone)]
-      pub struct VariantType {
-        pub name: wit_bindgen::rt::string::String,
-      }
-      impl ::core::fmt::Debug for VariantType {
-        fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
-          f.debug_struct("VariantType").field("name", &self.name).finish()
-        }
-      }
-      pub enum TypeItemKind{
-        Bool,
-        U8,
-        U16,
-        U32,
-        U64,
-        S8,
-        S16,
-        S32,
-        S64,
-        F32,
-        F64,
-        Char,
-        String,
-        List(TypeItem),
-        Tuple(wit_bindgen::rt::vec::Vec::<TypeItem>),
-        Option(TypeItem),
-        Result(ResultType),
-        Enum(EnumType),
-        Variant(VariantType),
-        Record(RecordType),
-      }
-      impl ::core::fmt::Debug for TypeItemKind {
-        fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
-          match self {
-            TypeItemKind::Bool => {
-              f.debug_tuple("TypeItemKind::Bool").finish()
-            }
-            TypeItemKind::U8 => {
-              f.debug_tuple("TypeItemKind::U8").finish()
-            }
-            TypeItemKind::U16 => {
-              f.debug_tuple("TypeItemKind::U16").finish()
-            }
-            TypeItemKind::U32 => {
-              f.debug_tuple("TypeItemKind::U32").finish()
-            }
-            TypeItemKind::U64 => {
-              f.debug_tuple("TypeItemKind::U64").finish()
-            }
-            TypeItemKind::S8 => {
-              f.debug_tuple("TypeItemKind::S8").finish()
-            }
-            TypeItemKind::S16 => {
-              f.debug_tuple("TypeItemKind::S16").finish()
-            }
-            TypeItemKind::S32 => {
-              f.debug_tuple("TypeItemKind::S32").finish()
-            }
-            TypeItemKind::S64 => {
-              f.debug_tuple("TypeItemKind::S64").finish()
-            }
-            TypeItemKind::F32 => {
-              f.debug_tuple("TypeItemKind::F32").finish()
-            }
-            TypeItemKind::F64 => {
-              f.debug_tuple("TypeItemKind::F64").finish()
-            }
-            TypeItemKind::Char => {
-              f.debug_tuple("TypeItemKind::Char").finish()
-            }
-            TypeItemKind::String => {
-              f.debug_tuple("TypeItemKind::String").finish()
-            }
-            TypeItemKind::List(e) => {
-              f.debug_tuple("TypeItemKind::List").field(e).finish()
-            }
-            TypeItemKind::Tuple(e) => {
-              f.debug_tuple("TypeItemKind::Tuple").field(e).finish()
-            }
-            TypeItemKind::Option(e) => {
-              f.debug_tuple("TypeItemKind::Option").field(e).finish()
-            }
-            TypeItemKind::Result(e) => {
-              f.debug_tuple("TypeItemKind::Result").field(e).finish()
-            }
-            TypeItemKind::Enum(e) => {
-              f.debug_tuple("TypeItemKind::Enum").field(e).finish()
-            }
-            TypeItemKind::Variant(e) => {
-              f.debug_tuple("TypeItemKind::Variant").field(e).finish()
-            }
-            TypeItemKind::Record(e) => {
-              f.debug_tuple("TypeItemKind::Record").field(e).finish()
-            }
-          }
-        }
-      }
       #[derive(Clone)]
       pub enum Val{
-        Str(wit_bindgen::rt::string::String),
+        String(wit_bindgen::rt::string::String),
       }
       impl ::core::fmt::Debug for Val {
         fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
           match self {
-            Val::Str(e) => {
-              f.debug_tuple("Val::Str").field(e).finish()
+            Val::String(e) => {
+              f.debug_tuple("Val::String").field(e).finish()
             }
           }
         }
       }
+      #[derive(Clone)]
+      pub enum ResolveError{
+        InvalidBytes(wit_bindgen::rt::string::String),
+      }
+      impl ::core::fmt::Debug for ResolveError {
+        fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
+          match self {
+            ResolveError::InvalidBytes(e) => {
+              f.debug_tuple("ResolveError::InvalidBytes").field(e).finish()
+            }
+          }
+        }
+      }
+      impl ::core::fmt::Display for ResolveError {
+        fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
+          write!(f, "{:?}", self)
+        }
+      }
+      
+      impl std::error::Error for ResolveError {}
       #[derive(Clone)]
       pub enum LoadError{
         InvalidBytes(wit_bindgen::rt::string::String),
@@ -481,6 +869,65 @@ pub mod component {
       }
       impl Component {
         #[allow(unused_unsafe, clippy::all)]
+        pub fn world(&self,) -> Result<World,ResolveError>{
+          
+          #[allow(unused_imports)]
+          use wit_bindgen::rt::{alloc, vec::Vec, string::String};
+          unsafe {
+            
+            #[repr(align(4))]
+            struct RetArea([u8; 16]);
+            let mut ret_area = ::core::mem::MaybeUninit::<RetArea>::uninit();
+            let ptr0 = ret_area.as_mut_ptr() as i32;
+            #[cfg(target_arch = "wasm32")]
+            #[link(wasm_import_module = "component:dyna/dynamic-component")]
+            extern "C" {
+              #[link_name = "[method]component.world"]
+              fn wit_import(_: i32, _: i32, );
+            }
+            
+            #[cfg(not(target_arch = "wasm32"))]
+            fn wit_import(_: i32, _: i32, ){ unreachable!() }
+            wit_import((self).handle() as i32, ptr0);
+            let l1 = i32::from(*((ptr0 + 0) as *const u8));
+            match l1 {
+              0 => {
+                let e = {
+                  let l2 = *((ptr0 + 4) as *const i32);
+                  
+                  super::super::super::component::dyna::wit::World::from_handle(l2 as u32)
+                };
+                Ok(e)
+              }
+              1 => {
+                let e = {
+                  let l3 = i32::from(*((ptr0 + 4) as *const u8));
+                  let v7 = match l3 {
+                    n => {
+                      debug_assert_eq!(n, 0, "invalid enum discriminant");
+                      let e7 = {
+                        let l4 = *((ptr0 + 8) as *const i32);
+                        let l5 = *((ptr0 + 12) as *const i32);
+                        let len6 = l5 as usize;
+                        let bytes6 = Vec::from_raw_parts(l4 as *mut _, len6, len6);
+                        
+                        wit_bindgen::rt::string_lift(bytes6)
+                      };
+                      ResolveError::InvalidBytes(e7)
+                    }
+                  };
+                  
+                  v7
+                };
+                Err(e)
+              }
+              _ => wit_bindgen::rt::invalid_enum_discriminant(),
+            }
+          }
+        }
+      }
+      impl Component {
+        #[allow(unused_unsafe, clippy::all)]
         pub fn call(&self,name: &str,params: &[Val],) -> Result<wit_bindgen::rt::vec::Vec::<Val>,CallError>{
           
           #[allow(unused_imports)]
@@ -511,7 +958,7 @@ pub mod component {
               let base = result2 as i32 + (i as i32) * 12;
               {
                 match e {
-                  Val::Str(e) => {
+                  Val::String(e) => {
                     *((base + 0) as *mut u8) = (0i32) as u8;
                     let vec1 = e;
                     let ptr1 = vec1.as_ptr() as i32;
@@ -560,7 +1007,7 @@ pub mod component {
                             
                             wit_bindgen::rt::string_lift(bytes10)
                           };
-                          Val::Str(e11)
+                          Val::String(e11)
                         }
                       };
                       
@@ -593,317 +1040,6 @@ pub mod component {
           }
         }
       }
-      impl Component {
-        #[allow(unused_unsafe, clippy::all)]
-        pub fn reflect(&self,) -> wit_bindgen::rt::vec::Vec::<ExportItem>{
-          
-          #[allow(unused_imports)]
-          use wit_bindgen::rt::{alloc, vec::Vec, string::String};
-          unsafe {
-            
-            #[repr(align(4))]
-            struct RetArea([u8; 8]);
-            let mut ret_area = ::core::mem::MaybeUninit::<RetArea>::uninit();
-            let ptr0 = ret_area.as_mut_ptr() as i32;
-            #[cfg(target_arch = "wasm32")]
-            #[link(wasm_import_module = "component:dyna/dynamic-component")]
-            extern "C" {
-              #[link_name = "[method]component.reflect"]
-              fn wit_import(_: i32, _: i32, );
-            }
-            
-            #[cfg(not(target_arch = "wasm32"))]
-            fn wit_import(_: i32, _: i32, ){ unreachable!() }
-            wit_import((self).handle() as i32, ptr0);
-            let l1 = *((ptr0 + 0) as *const i32);
-            let l2 = *((ptr0 + 4) as *const i32);
-            let base30 = l1;
-            let len30 = l2;
-            let mut result30 = Vec::with_capacity(len30 as usize);
-            for i in 0..len30 {
-              let base = base30 + i * 24;
-              let e30 = {
-                let l3 = *((base + 0) as *const i32);
-                let l4 = *((base + 4) as *const i32);
-                let len5 = l4 as usize;
-                let bytes5 = Vec::from_raw_parts(l3 as *mut _, len5, len5);
-                let l6 = i32::from(*((base + 8) as *const u8));
-                let v29 = match l6 {
-                  0 => {
-                    let e29 = {
-                      let l7 = *((base + 12) as *const i32);
-                      let l8 = *((base + 16) as *const i32);
-                      let base13 = l7;
-                      let len13 = l8;
-                      let mut result13 = Vec::with_capacity(len13 as usize);
-                      for i in 0..len13 {
-                        let base = base13 + i * 12;
-                        let e13 = {
-                          let l9 = *((base + 0) as *const i32);
-                          let l10 = *((base + 4) as *const i32);
-                          let len11 = l10 as usize;
-                          let bytes11 = Vec::from_raw_parts(l9 as *mut _, len11, len11);
-                          let l12 = *((base + 8) as *const i32);
-                          
-                          (wit_bindgen::rt::string_lift(bytes11), TypeItem::from_handle(l12 as u32))
-                        };
-                        result13.push(e13);
-                      }
-                      wit_bindgen::rt::dealloc(base13, (len13 as usize) * 12, 4);
-                      let l14 = *((base + 20) as *const i32);
-                      
-                      Function{
-                        params: result13,
-                        result: TypeItem::from_handle(l14 as u32),
-                      }
-                    };
-                    ExportKind::Function(e29)
-                  }
-                  n => {
-                    debug_assert_eq!(n, 1, "invalid enum discriminant");
-                    let e29 = {
-                      let l15 = *((base + 12) as *const i32);
-                      let l16 = *((base + 16) as *const i32);
-                      let base28 = l15;
-                      let len28 = l16;
-                      let mut result28 = Vec::with_capacity(len28 as usize);
-                      for i in 0..len28 {
-                        let base = base28 + i * 20;
-                        let e28 = {
-                          let l17 = *((base + 0) as *const i32);
-                          let l18 = *((base + 4) as *const i32);
-                          let len19 = l18 as usize;
-                          let bytes19 = Vec::from_raw_parts(l17 as *mut _, len19, len19);
-                          let l20 = *((base + 8) as *const i32);
-                          let l21 = *((base + 12) as *const i32);
-                          let base26 = l20;
-                          let len26 = l21;
-                          let mut result26 = Vec::with_capacity(len26 as usize);
-                          for i in 0..len26 {
-                            let base = base26 + i * 12;
-                            let e26 = {
-                              let l22 = *((base + 0) as *const i32);
-                              let l23 = *((base + 4) as *const i32);
-                              let len24 = l23 as usize;
-                              let bytes24 = Vec::from_raw_parts(l22 as *mut _, len24, len24);
-                              let l25 = *((base + 8) as *const i32);
-                              
-                              (wit_bindgen::rt::string_lift(bytes24), TypeItem::from_handle(l25 as u32))
-                            };
-                            result26.push(e26);
-                          }
-                          wit_bindgen::rt::dealloc(base26, (len26 as usize) * 12, 4);
-                          let l27 = *((base + 16) as *const i32);
-                          
-                          (wit_bindgen::rt::string_lift(bytes19), Function{
-                            params: result26,
-                            result: TypeItem::from_handle(l27 as u32),
-                          })
-                        };
-                        result28.push(e28);
-                      }
-                      wit_bindgen::rt::dealloc(base28, (len28 as usize) * 20, 4);
-                      
-                      Interface{
-                        functions: result28,
-                      }
-                    };
-                    ExportKind::Interface(e29)
-                  }
-                };
-                
-                ExportItem{
-                  name: wit_bindgen::rt::string_lift(bytes5),
-                  kind: v29,
-                }
-              };
-              result30.push(e30);
-            }
-            wit_bindgen::rt::dealloc(base30, (len30 as usize) * 24, 4);
-            result30
-          }
-        }
-      }
-      impl TypeItem {
-        #[allow(unused_unsafe, clippy::all)]
-        pub fn kind(&self,) -> TypeItemKind{
-          
-          #[allow(unused_imports)]
-          use wit_bindgen::rt::{alloc, vec::Vec, string::String};
-          unsafe {
-            
-            #[repr(align(4))]
-            struct RetArea([u8; 20]);
-            let mut ret_area = ::core::mem::MaybeUninit::<RetArea>::uninit();
-            let ptr0 = ret_area.as_mut_ptr() as i32;
-            #[cfg(target_arch = "wasm32")]
-            #[link(wasm_import_module = "component:dyna/dynamic-component")]
-            extern "C" {
-              #[link_name = "[method]type-item.kind"]
-              fn wit_import(_: i32, _: i32, );
-            }
-            
-            #[cfg(not(target_arch = "wasm32"))]
-            fn wit_import(_: i32, _: i32, ){ unreachable!() }
-            wit_import((self).handle() as i32, ptr0);
-            let l1 = i32::from(*((ptr0 + 0) as *const u8));
-            let v21 = match l1 {
-              0 => {
-                TypeItemKind::Bool
-              }
-              1 => {
-                TypeItemKind::U8
-              }
-              2 => {
-                TypeItemKind::U16
-              }
-              3 => {
-                TypeItemKind::U32
-              }
-              4 => {
-                TypeItemKind::U64
-              }
-              5 => {
-                TypeItemKind::S8
-              }
-              6 => {
-                TypeItemKind::S16
-              }
-              7 => {
-                TypeItemKind::S32
-              }
-              8 => {
-                TypeItemKind::S64
-              }
-              9 => {
-                TypeItemKind::F32
-              }
-              10 => {
-                TypeItemKind::F64
-              }
-              11 => {
-                TypeItemKind::Char
-              }
-              12 => {
-                TypeItemKind::String
-              }
-              13 => {
-                let e21 = {
-                  let l2 = *((ptr0 + 4) as *const i32);
-                  
-                  TypeItem::from_handle(l2 as u32)
-                };
-                TypeItemKind::List(e21)
-              }
-              14 => {
-                let e21 = {
-                  let l3 = *((ptr0 + 4) as *const i32);
-                  let l4 = *((ptr0 + 8) as *const i32);
-                  let base6 = l3;
-                  let len6 = l4;
-                  let mut result6 = Vec::with_capacity(len6 as usize);
-                  for i in 0..len6 {
-                    let base = base6 + i * 4;
-                    let e6 = {
-                      let l5 = *((base + 0) as *const i32);
-                      
-                      TypeItem::from_handle(l5 as u32)
-                    };
-                    result6.push(e6);
-                  }
-                  wit_bindgen::rt::dealloc(base6, (len6 as usize) * 4, 4);
-                  
-                  result6
-                };
-                TypeItemKind::Tuple(e21)
-              }
-              15 => {
-                let e21 = {
-                  let l7 = *((ptr0 + 4) as *const i32);
-                  
-                  TypeItem::from_handle(l7 as u32)
-                };
-                TypeItemKind::Option(e21)
-              }
-              16 => {
-                let e21 = {
-                  let l8 = i32::from(*((ptr0 + 4) as *const u8));
-                  let l10 = i32::from(*((ptr0 + 12) as *const u8));
-                  
-                  ResultType{
-                    ok: match l8 {
-                      0 => None,
-                      1 => {
-                        let e = {
-                          let l9 = *((ptr0 + 8) as *const i32);
-                          
-                          TypeItem::from_handle(l9 as u32)
-                        };
-                        Some(e)
-                      }
-                      _ => wit_bindgen::rt::invalid_enum_discriminant(),
-                    },
-                    err: match l10 {
-                      0 => None,
-                      1 => {
-                        let e = {
-                          let l11 = *((ptr0 + 16) as *const i32);
-                          
-                          TypeItem::from_handle(l11 as u32)
-                        };
-                        Some(e)
-                      }
-                      _ => wit_bindgen::rt::invalid_enum_discriminant(),
-                    },
-                  }
-                };
-                TypeItemKind::Result(e21)
-              }
-              17 => {
-                let e21 = {
-                  let l12 = *((ptr0 + 4) as *const i32);
-                  let l13 = *((ptr0 + 8) as *const i32);
-                  let len14 = l13 as usize;
-                  let bytes14 = Vec::from_raw_parts(l12 as *mut _, len14, len14);
-                  
-                  EnumType{
-                    name: wit_bindgen::rt::string_lift(bytes14),
-                  }
-                };
-                TypeItemKind::Enum(e21)
-              }
-              18 => {
-                let e21 = {
-                  let l15 = *((ptr0 + 4) as *const i32);
-                  let l16 = *((ptr0 + 8) as *const i32);
-                  let len17 = l16 as usize;
-                  let bytes17 = Vec::from_raw_parts(l15 as *mut _, len17, len17);
-                  
-                  VariantType{
-                    name: wit_bindgen::rt::string_lift(bytes17),
-                  }
-                };
-                TypeItemKind::Variant(e21)
-              }
-              n => {
-                debug_assert_eq!(n, 19, "invalid enum discriminant");
-                let e21 = {
-                  let l18 = *((ptr0 + 4) as *const i32);
-                  let l19 = *((ptr0 + 8) as *const i32);
-                  let len20 = l19 as usize;
-                  let bytes20 = Vec::from_raw_parts(l18 as *mut _, len20, len20);
-                  
-                  RecordType{
-                    name: wit_bindgen::rt::string_lift(bytes20),
-                  }
-                };
-                TypeItemKind::Record(e21)
-              }
-            };
-            v21
-          }
-        }
-      }
       
     }
     
@@ -913,7 +1049,7 @@ pub mod component {
 #[cfg(target_arch = "wasm32")]
 #[link_section = "component-type:guest"]
 #[doc(hidden)]
-pub static __WIT_BINDGEN_COMPONENT_TYPE: [u8; 1025] = [0, 97, 115, 109, 13, 0, 1, 0, 0, 25, 22, 119, 105, 116, 45, 99, 111, 109, 112, 111, 110, 101, 110, 116, 45, 101, 110, 99, 111, 100, 105, 110, 103, 4, 0, 7, 134, 7, 1, 65, 2, 1, 65, 4, 1, 66, 54, 4, 0, 6, 101, 110, 103, 105, 110, 101, 3, 1, 4, 0, 9, 99, 111, 109, 112, 111, 110, 101, 110, 116, 3, 1, 4, 0, 9, 116, 121, 112, 101, 45, 105, 116, 101, 109, 3, 1, 1, 105, 2, 1, 111, 2, 115, 3, 1, 112, 4, 1, 114, 2, 6, 112, 97, 114, 97, 109, 115, 5, 6, 114, 101, 115, 117, 108, 116, 3, 4, 0, 8, 102, 117, 110, 99, 116, 105, 111, 110, 3, 0, 6, 1, 111, 2, 115, 7, 1, 112, 8, 1, 114, 1, 9, 102, 117, 110, 99, 116, 105, 111, 110, 115, 9, 4, 0, 9, 105, 110, 116, 101, 114, 102, 97, 99, 101, 3, 0, 10, 1, 113, 2, 8, 102, 117, 110, 99, 116, 105, 111, 110, 1, 7, 0, 9, 105, 110, 116, 101, 114, 102, 97, 99, 101, 1, 11, 0, 4, 0, 11, 101, 120, 112, 111, 114, 116, 45, 107, 105, 110, 100, 3, 0, 12, 1, 114, 2, 4, 110, 97, 109, 101, 115, 4, 107, 105, 110, 100, 13, 4, 0, 11, 101, 120, 112, 111, 114, 116, 45, 105, 116, 101, 109, 3, 0, 14, 1, 107, 3, 1, 114, 2, 2, 111, 107, 16, 3, 101, 114, 114, 16, 4, 0, 11, 114, 101, 115, 117, 108, 116, 45, 116, 121, 112, 101, 3, 0, 17, 1, 114, 1, 4, 110, 97, 109, 101, 115, 4, 0, 11, 114, 101, 99, 111, 114, 100, 45, 116, 121, 112, 101, 3, 0, 19, 1, 114, 1, 4, 110, 97, 109, 101, 115, 4, 0, 9, 101, 110, 117, 109, 45, 116, 121, 112, 101, 3, 0, 21, 1, 114, 1, 4, 110, 97, 109, 101, 115, 4, 0, 12, 118, 97, 114, 105, 97, 110, 116, 45, 116, 121, 112, 101, 3, 0, 23, 1, 112, 3, 1, 113, 20, 4, 98, 111, 111, 108, 0, 0, 2, 117, 56, 0, 0, 3, 117, 49, 54, 0, 0, 3, 117, 51, 50, 0, 0, 3, 117, 54, 52, 0, 0, 2, 115, 56, 0, 0, 3, 115, 49, 54, 0, 0, 3, 115, 51, 50, 0, 0, 3, 115, 54, 52, 0, 0, 3, 102, 51, 50, 0, 0, 3, 102, 54, 52, 0, 0, 4, 99, 104, 97, 114, 0, 0, 6, 115, 116, 114, 105, 110, 103, 0, 0, 4, 108, 105, 115, 116, 1, 3, 0, 5, 116, 117, 112, 108, 101, 1, 25, 0, 6, 111, 112, 116, 105, 111, 110, 1, 3, 0, 6, 114, 101, 115, 117, 108, 116, 1, 18, 0, 4, 101, 110, 117, 109, 1, 22, 0, 7, 118, 97, 114, 105, 97, 110, 116, 1, 24, 0, 6, 114, 101, 99, 111, 114, 100, 1, 20, 0, 4, 0, 14, 116, 121, 112, 101, 45, 105, 116, 101, 109, 45, 107, 105, 110, 100, 3, 0, 26, 1, 113, 1, 3, 115, 116, 114, 1, 115, 0, 4, 0, 3, 118, 97, 108, 3, 0, 28, 1, 113, 1, 13, 105, 110, 118, 97, 108, 105, 100, 45, 98, 121, 116, 101, 115, 1, 115, 0, 4, 0, 10, 108, 111, 97, 100, 45, 101, 114, 114, 111, 114, 3, 0, 30, 1, 113, 1, 11, 110, 111, 45, 102, 117, 110, 99, 116, 105, 111, 110, 0, 0, 4, 0, 10, 99, 97, 108, 108, 45, 101, 114, 114, 111, 114, 3, 0, 32, 1, 105, 0, 1, 64, 0, 0, 34, 4, 0, 19, 91, 99, 111, 110, 115, 116, 114, 117, 99, 116, 111, 114, 93, 101, 110, 103, 105, 110, 101, 1, 35, 1, 104, 0, 1, 112, 125, 1, 105, 1, 1, 106, 1, 38, 1, 31, 1, 64, 2, 4, 115, 101, 108, 102, 36, 5, 98, 121, 116, 101, 115, 37, 0, 39, 4, 0, 29, 91, 109, 101, 116, 104, 111, 100, 93, 101, 110, 103, 105, 110, 101, 46, 108, 111, 97, 100, 45, 99, 111, 109, 112, 111, 110, 101, 110, 116, 1, 40, 1, 104, 1, 1, 112, 29, 1, 106, 1, 42, 1, 33, 1, 64, 3, 4, 115, 101, 108, 102, 41, 4, 110, 97, 109, 101, 115, 6, 112, 97, 114, 97, 109, 115, 42, 0, 43, 4, 0, 22, 91, 109, 101, 116, 104, 111, 100, 93, 99, 111, 109, 112, 111, 110, 101, 110, 116, 46, 99, 97, 108, 108, 1, 44, 1, 112, 15, 1, 64, 1, 4, 115, 101, 108, 102, 41, 0, 45, 4, 0, 25, 91, 109, 101, 116, 104, 111, 100, 93, 99, 111, 109, 112, 111, 110, 101, 110, 116, 46, 114, 101, 102, 108, 101, 99, 116, 1, 46, 1, 104, 2, 1, 64, 1, 4, 115, 101, 108, 102, 47, 0, 27, 4, 0, 22, 91, 109, 101, 116, 104, 111, 100, 93, 116, 121, 112, 101, 45, 105, 116, 101, 109, 46, 107, 105, 110, 100, 1, 48, 3, 1, 32, 99, 111, 109, 112, 111, 110, 101, 110, 116, 58, 100, 121, 110, 97, 47, 100, 121, 110, 97, 109, 105, 99, 45, 99, 111, 109, 112, 111, 110, 101, 110, 116, 5, 0, 1, 64, 0, 1, 0, 4, 0, 5, 104, 101, 108, 108, 111, 1, 1, 4, 1, 21, 99, 111, 109, 112, 111, 110, 101, 110, 116, 58, 103, 117, 101, 115, 116, 47, 103, 117, 101, 115, 116, 4, 0, 11, 11, 1, 0, 5, 103, 117, 101, 115, 116, 3, 0, 0, 0, 70, 9, 112, 114, 111, 100, 117, 99, 101, 114, 115, 1, 12, 112, 114, 111, 99, 101, 115, 115, 101, 100, 45, 98, 121, 2, 13, 119, 105, 116, 45, 99, 111, 109, 112, 111, 110, 101, 110, 116, 6, 48, 46, 50, 49, 46, 48, 16, 119, 105, 116, 45, 98, 105, 110, 100, 103, 101, 110, 45, 114, 117, 115, 116, 6, 48, 46, 49, 56, 46, 48];
+pub static __WIT_BINDGEN_COMPONENT_TYPE: [u8; 1156] = [0, 97, 115, 109, 13, 0, 1, 0, 0, 25, 22, 119, 105, 116, 45, 99, 111, 109, 112, 111, 110, 101, 110, 116, 45, 101, 110, 99, 111, 100, 105, 110, 103, 4, 0, 7, 137, 8, 1, 65, 2, 1, 65, 7, 1, 66, 34, 4, 0, 5, 119, 111, 114, 108, 100, 3, 1, 4, 0, 4, 116, 121, 112, 101, 3, 1, 1, 105, 1, 1, 111, 2, 115, 2, 1, 112, 3, 1, 114, 2, 6, 112, 97, 114, 97, 109, 115, 4, 6, 114, 101, 115, 117, 108, 116, 2, 4, 0, 8, 102, 117, 110, 99, 116, 105, 111, 110, 3, 0, 5, 1, 111, 2, 115, 6, 1, 112, 7, 1, 114, 1, 9, 102, 117, 110, 99, 116, 105, 111, 110, 115, 8, 4, 0, 9, 105, 110, 116, 101, 114, 102, 97, 99, 101, 3, 0, 9, 1, 113, 2, 8, 102, 117, 110, 99, 116, 105, 111, 110, 1, 6, 0, 9, 105, 110, 116, 101, 114, 102, 97, 99, 101, 1, 10, 0, 4, 0, 11, 101, 120, 112, 111, 114, 116, 45, 107, 105, 110, 100, 3, 0, 11, 1, 114, 2, 4, 110, 97, 109, 101, 115, 4, 107, 105, 110, 100, 12, 4, 0, 6, 101, 120, 112, 111, 114, 116, 3, 0, 13, 1, 107, 2, 1, 114, 2, 2, 111, 107, 15, 3, 101, 114, 114, 15, 4, 0, 11, 114, 101, 115, 117, 108, 116, 45, 116, 121, 112, 101, 3, 0, 16, 1, 114, 1, 4, 110, 97, 109, 101, 115, 4, 0, 11, 114, 101, 99, 111, 114, 100, 45, 116, 121, 112, 101, 3, 0, 18, 1, 114, 1, 4, 110, 97, 109, 101, 115, 4, 0, 9, 101, 110, 117, 109, 45, 116, 121, 112, 101, 3, 0, 20, 1, 114, 1, 4, 110, 97, 109, 101, 115, 4, 0, 12, 118, 97, 114, 105, 97, 110, 116, 45, 116, 121, 112, 101, 3, 0, 22, 1, 112, 2, 1, 113, 20, 4, 98, 111, 111, 108, 0, 0, 2, 117, 56, 0, 0, 3, 117, 49, 54, 0, 0, 3, 117, 51, 50, 0, 0, 3, 117, 54, 52, 0, 0, 2, 115, 56, 0, 0, 3, 115, 49, 54, 0, 0, 3, 115, 51, 50, 0, 0, 3, 115, 54, 52, 0, 0, 3, 102, 51, 50, 0, 0, 3, 102, 54, 52, 0, 0, 4, 99, 104, 97, 114, 0, 0, 6, 115, 116, 114, 105, 110, 103, 0, 0, 4, 108, 105, 115, 116, 1, 2, 0, 5, 116, 117, 112, 108, 101, 1, 24, 0, 6, 111, 112, 116, 105, 111, 110, 1, 2, 0, 6, 114, 101, 115, 117, 108, 116, 1, 17, 0, 4, 101, 110, 117, 109, 1, 21, 0, 7, 118, 97, 114, 105, 97, 110, 116, 1, 23, 0, 6, 114, 101, 99, 111, 114, 100, 1, 19, 0, 4, 0, 9, 116, 121, 112, 101, 45, 107, 105, 110, 100, 3, 0, 25, 1, 104, 0, 1, 112, 14, 1, 64, 1, 4, 115, 101, 108, 102, 27, 0, 28, 4, 0, 21, 91, 109, 101, 116, 104, 111, 100, 93, 119, 111, 114, 108, 100, 46, 101, 120, 112, 111, 114, 116, 115, 1, 29, 1, 104, 1, 1, 64, 1, 4, 115, 101, 108, 102, 30, 0, 26, 4, 0, 17, 91, 109, 101, 116, 104, 111, 100, 93, 116, 121, 112, 101, 46, 107, 105, 110, 100, 1, 31, 3, 1, 18, 99, 111, 109, 112, 111, 110, 101, 110, 116, 58, 100, 121, 110, 97, 47, 119, 105, 116, 5, 0, 2, 3, 0, 0, 5, 119, 111, 114, 108, 100, 1, 66, 30, 2, 3, 2, 1, 1, 4, 0, 5, 119, 111, 114, 108, 100, 3, 0, 0, 4, 0, 6, 101, 110, 103, 105, 110, 101, 3, 1, 4, 0, 9, 99, 111, 109, 112, 111, 110, 101, 110, 116, 3, 1, 1, 113, 1, 6, 115, 116, 114, 105, 110, 103, 1, 115, 0, 4, 0, 3, 118, 97, 108, 3, 0, 4, 1, 113, 1, 13, 105, 110, 118, 97, 108, 105, 100, 45, 98, 121, 116, 101, 115, 1, 115, 0, 4, 0, 13, 114, 101, 115, 111, 108, 118, 101, 45, 101, 114, 114, 111, 114, 3, 0, 6, 1, 113, 1, 13, 105, 110, 118, 97, 108, 105, 100, 45, 98, 121, 116, 101, 115, 1, 115, 0, 4, 0, 10, 108, 111, 97, 100, 45, 101, 114, 114, 111, 114, 3, 0, 8, 1, 113, 1, 11, 110, 111, 45, 102, 117, 110, 99, 116, 105, 111, 110, 0, 0, 4, 0, 10, 99, 97, 108, 108, 45, 101, 114, 114, 111, 114, 3, 0, 10, 1, 105, 2, 1, 64, 0, 0, 12, 4, 0, 19, 91, 99, 111, 110, 115, 116, 114, 117, 99, 116, 111, 114, 93, 101, 110, 103, 105, 110, 101, 1, 13, 1, 104, 2, 1, 112, 125, 1, 105, 3, 1, 106, 1, 16, 1, 9, 1, 64, 2, 4, 115, 101, 108, 102, 14, 5, 98, 121, 116, 101, 115, 15, 0, 17, 4, 0, 29, 91, 109, 101, 116, 104, 111, 100, 93, 101, 110, 103, 105, 110, 101, 46, 108, 111, 97, 100, 45, 99, 111, 109, 112, 111, 110, 101, 110, 116, 1, 18, 1, 104, 3, 1, 105, 1, 1, 106, 1, 20, 1, 7, 1, 64, 1, 4, 115, 101, 108, 102, 19, 0, 21, 4, 0, 23, 91, 109, 101, 116, 104, 111, 100, 93, 99, 111, 109, 112, 111, 110, 101, 110, 116, 46, 119, 111, 114, 108, 100, 1, 22, 1, 112, 5, 1, 106, 1, 23, 1, 11, 1, 64, 3, 4, 115, 101, 108, 102, 19, 4, 110, 97, 109, 101, 115, 6, 112, 97, 114, 97, 109, 115, 23, 0, 24, 4, 0, 22, 91, 109, 101, 116, 104, 111, 100, 93, 99, 111, 109, 112, 111, 110, 101, 110, 116, 46, 99, 97, 108, 108, 1, 25, 3, 1, 32, 99, 111, 109, 112, 111, 110, 101, 110, 116, 58, 100, 121, 110, 97, 47, 100, 121, 110, 97, 109, 105, 99, 45, 99, 111, 109, 112, 111, 110, 101, 110, 116, 5, 2, 1, 64, 0, 1, 0, 4, 0, 5, 104, 101, 108, 108, 111, 1, 3, 4, 1, 21, 99, 111, 109, 112, 111, 110, 101, 110, 116, 58, 103, 117, 101, 115, 116, 47, 103, 117, 101, 115, 116, 4, 0, 11, 11, 1, 0, 5, 103, 117, 101, 115, 116, 3, 0, 0, 0, 70, 9, 112, 114, 111, 100, 117, 99, 101, 114, 115, 1, 12, 112, 114, 111, 99, 101, 115, 115, 101, 100, 45, 98, 121, 2, 13, 119, 105, 116, 45, 99, 111, 109, 112, 111, 110, 101, 110, 116, 6, 48, 46, 50, 49, 46, 48, 16, 119, 105, 116, 45, 98, 105, 110, 100, 103, 101, 110, 45, 114, 117, 115, 116, 6, 48, 46, 49, 56, 46, 48];
 
 #[inline(never)]
 #[doc(hidden)]
