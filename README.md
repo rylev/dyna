@@ -13,7 +13,12 @@ let component_bytes = std::fs::read("some_component.wasm").unwrap();
 let engine = Engine::new();
 let component = engine.load_component(&component_bytes).unwrap();
 // Reflect on the component to gain insight into its exports
-println!("{:#?}", component.reflect());
-// Call a component export
-let val = component.call("hello-world", &[]);
+if exports.iter().any(|e| {
+    e.name == "hello-world" && 
+        matches!(&e.kind, ExportKind::Function(f) if f.params.is_empty())
+    }) {
+    // Call a component export and inspect its return value
+    let val = component.call("hello-world", &[]).unwrap();
+    assert!(matches!(&val[0], Val::Str(s) if s == "Hello, World!"));
+}
 ```
