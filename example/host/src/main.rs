@@ -1,19 +1,19 @@
 #[tokio::main]
 async fn main() {
     let dynamic_guest_path = std::env::args()
-        .skip(1)
-        .next()
+        .nth(1)
         .expect("expected path to component binary");
 
     let engine = create_engine().unwrap();
 
     let mut store = wasmtime::Store::new(&engine, State::new());
-    let component = wasmtime::component::Component::from_file(&engine, dynamic_guest_path).unwrap();
+    let dynamic_component =
+        wasmtime::component::Component::from_file(&engine, dynamic_guest_path).unwrap();
     let mut linker = wasmtime::component::Linker::new(&engine);
     dyna::add_to_linker(&mut linker).unwrap();
-    wasmtime_wasi::preview2::command::add_to_linker(&mut linker).unwrap();
+    wasmtime_wasi::add_to_linker_async(&mut linker).unwrap();
     let instance = linker
-        .instantiate_async(&mut store, &component)
+        .instantiate_async(&mut store, &dynamic_component)
         .await
         .unwrap();
     let func = instance
@@ -30,30 +30,30 @@ fn create_engine() -> wasmtime::Result<wasmtime::Engine> {
 
 struct State {
     table: wasmtime::component::ResourceTable,
-    ctx: wasmtime_wasi::preview2::WasiCtx,
+    ctx: wasmtime_wasi::WasiCtx,
 }
 
 impl State {
     fn new() -> Self {
-        let dir = cap_std::fs::Dir::open_ambient_dir(".", cap_std::ambient_authority()).unwrap();
-        let dir_perms = wasmtime_wasi::preview2::DirPerms::all();
-        let file_perms = wasmtime_wasi::preview2::FilePerms::all();
+        let dir_perms = wasmtime_wasi::DirPerms::all();
+        let file_perms = wasmtime_wasi::FilePerms::all();
         Self {
             table: wasmtime::component::ResourceTable::new(),
-            ctx: wasmtime_wasi::preview2::WasiCtxBuilder::new()
-                .preopened_dir(dir, dir_perms, file_perms, "/")
+            ctx: wasmtime_wasi::WasiCtxBuilder::new()
+                .preopened_dir(".", "/", dir_perms, file_perms)
+                .unwrap()
                 .inherit_stdio()
                 .build(),
         }
     }
 }
 
-impl wasmtime_wasi::preview2::WasiView for State {
+impl wasmtime_wasi::WasiView for State {
     fn table(&mut self) -> &mut wasmtime::component::ResourceTable {
         &mut self.table
     }
 
-    fn ctx(&mut self) -> &mut wasmtime_wasi::preview2::WasiCtx {
+    fn ctx(&mut self) -> &mut wasmtime_wasi::WasiCtx {
         &mut self.ctx
     }
 }

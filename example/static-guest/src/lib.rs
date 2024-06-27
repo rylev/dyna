@@ -4,6 +4,8 @@ use bindings::{exports::component::example::foo, Guest};
 
 struct Component;
 
+bindings::export!(Component with_types_in bindings);
+
 impl Guest for Component {
     /// Say hello!
     fn hello_world() -> String {

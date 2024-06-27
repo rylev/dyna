@@ -6,6 +6,8 @@ use bindings::Guest;
 
 pub struct Component;
 
+bindings::export!(Component with_types_in bindings);
+
 impl Guest for Component {
     fn hello() {
         let component_bytes = std::fs::read("example/static_guest.wasm").unwrap();
