@@ -1,4 +1,7 @@
-use std::sync::Arc;
+use std::{
+    ops::{Deref, DerefMut},
+    sync::Arc,
+};
 
 use anyhow::Context;
 use component::dyna::{dynamic_component, wit};
@@ -9,7 +12,8 @@ wasmtime::component::bindgen!({
         "component:dyna/dynamic-component/component": ComponentState,
         "component:dyna/wit/world": Resolver,
         "component:dyna/wit/type": Type,
-    }
+    },
+    trappable_imports: true
 });
 
 pub use wasmtime::Engine;
@@ -18,8 +22,16 @@ pub use wasmtime::Engine;
 pub fn add_to_linker<T: DynamicComponentView>(
     linker: &mut wasmtime::component::Linker<T>,
 ) -> anyhow::Result<()> {
-    dynamic_component::add_to_linker(linker, |x| x)?;
-    wit::add_to_linker(linker, |x| x)
+    let closure = type_annotate::<T, _>(|t| DynamicHostImpl(t));
+    dynamic_component::add_to_linker_get_host(linker, closure)?;
+    wit::add_to_linker_get_host(linker, closure)
+}
+
+fn type_annotate<T, F>(val: F) -> F
+where
+    F: Fn(&mut T) -> DynamicHostImpl<&mut T>,
+{
+    val
 }
 
 /// A trait for hosting dynamic components.
@@ -27,7 +39,13 @@ pub trait DynamicComponentView {
     fn table(&mut self) -> &mut wasmtime::component::ResourceTable;
 }
 
-impl<T> dynamic_component::HostEngine for T
+impl<T: ?Sized + DynamicComponentView> DynamicComponentView for &mut T {
+    fn table(&mut self) -> &mut wasmtime::component::ResourceTable {
+        T::table(self)
+    }
+}
+
+impl<T> dynamic_component::HostEngine for DynamicHostImpl<T>
 where
     T: DynamicComponentView,
 {
@@ -77,9 +95,25 @@ where
     }
 }
 
-impl<T> dynamic_component::Host for T where T: DynamicComponentView {}
+pub struct DynamicHostImpl<T>(pub T);
 
-impl<T> dynamic_component::HostComponent for T
+impl<T> Deref for DynamicHostImpl<T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<T> DerefMut for DynamicHostImpl<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl<T> dynamic_component::Host for DynamicHostImpl<T> where T: DynamicComponentView {}
+
+impl<T> dynamic_component::HostComponent for DynamicHostImpl<T>
 where
     T: DynamicComponentView,
 {
@@ -134,8 +168,8 @@ where
     }
 }
 
-impl<T> wit::Host for T where T: DynamicComponentView {}
-impl<T> wit::HostWorld for T
+impl<T> wit::Host for DynamicHostImpl<T> where T: DynamicComponentView {}
+impl<T> wit::HostWorld for DynamicHostImpl<T>
 where
     T: DynamicComponentView,
 {
@@ -156,7 +190,7 @@ where
     }
 }
 
-impl<T> wit::HostType for T
+impl<T> wit::HostType for DynamicHostImpl<T>
 where
     T: DynamicComponentView,
 {
@@ -208,23 +242,21 @@ impl ComponentState {
     ) -> Result<Vec<dynamic_component::Val>, dynamic_component::CallError> {
         let func = self
             .instance
-            .get_func(&mut self.store, &name)
+            .get_func(&mut self.store, name)
             .ok_or(dynamic_component::CallError::NoFunction)?;
         let params = args
             .into_iter()
             .map(|a| match a {
-                dynamic_component::Val::String(s) => wasmtime::component::Val::String(s.into()),
+                dynamic_component::Val::String(s) => wasmtime::component::Val::String(s),
             })
             .collect::<Vec<_>>();
-        let mut result = [wasmtime::component::Val::String(
-            String::from("").into_boxed_str(),
-        )];
+        let mut result = [wasmtime::component::Val::String(String::new())];
         func.call(&mut self.store, &params, &mut result)
             .expect("TODO: other error");
         Ok(result
             .into_iter()
             .map(|v| match v {
-                wasmtime::component::Val::String(s) => dynamic_component::Val::String(s.into()),
+                wasmtime::component::Val::String(s) => dynamic_component::Val::String(s),
                 _ => todo!(""),
             })
             .collect())
@@ -244,8 +276,8 @@ impl Resolver {
             .exports
             .iter()
             .map(|(key, item)| match item {
-                wit_parser::WorldItem::Interface(i) => {
-                    let interface = self.resolve.interfaces.get(*i).unwrap();
+                wit_parser::WorldItem::Interface { id, .. } => {
+                    let interface = self.resolve.interfaces.get(*id).unwrap();
                     let name = match key {
                         wit_parser::WorldKey::Name(name) => name,
                         wit_parser::WorldKey::Interface(_) => interface
@@ -337,8 +369,8 @@ impl Type {
             S16 => TypeKind::S16,
             S32 => TypeKind::S32,
             S64 => TypeKind::S64,
-            Float32 => TypeKind::F32,
-            Float64 => TypeKind::F64,
+            F32 => TypeKind::F32,
+            F64 => TypeKind::F64,
             Char => TypeKind::Char,
             Id(i) => {
                 let typ = &self.resolve.types.get(*i).unwrap();
@@ -380,7 +412,7 @@ impl Type {
                     wit_parser::TypeDefKind::Resource => todo!("handle resources"),
                     wit_parser::TypeDefKind::Type(t) => Self {
                         resolve: self.resolve.clone(),
-                        typ: t.clone(),
+                        typ: *t,
                     }
                     .convert_type(resource_table),
                     wit_parser::TypeDefKind::Unknown => {
@@ -402,7 +434,7 @@ fn push_type(
 ) -> Result<wasmtime::component::Resource<wit::Type>, wasmtime::component::ResourceTableError> {
     let typ = Type {
         resolve: resolve.clone(),
-        typ: typ.clone(),
+        typ: *typ,
     };
     resource_table.push(typ)
 }

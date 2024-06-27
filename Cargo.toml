@@ -5,9 +5,9 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0"
-wasmtime = "18.0.0"
-wit-component = "0.201.0"
-wit-parser = "0.201.0"
+wasmtime = "22.0"
+wit-component = "0.211"
+wit-parser = "0.211"
 
 [workspace]
 members = ["example/*"]

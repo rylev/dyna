@@ -14,8 +14,11 @@ The host instantiates the dynamic guest which loads the static guest and calls i
 First, from the root of the dyna project, build the static guest:
 
 ```
-cargo component build -p static-guest
+cargo component build -p static-guest --target=wasm32-unknown-unknown
 ```
+
+> Note: only components that don't import wasi are supported at the 
+> current time so `--target=wasm32-unknown-unknown` is essential.
 
 Then move the static guest Wasm binary into the `example` directory.
 
